@@ -1,0 +1,23 @@
+Package: LibreriaMneRcsyPrc
+Title: What the Package Does (One Line, Title Case)
+Version: 0.0.0.9000
+Authors@R: 
+    person("Rafael", "Chávez Santiago", , "rafaelchavezsantiago@gmail.com", role = c("aut", "cre"))
+Description: Proporciona herramientas para modelado estadistico de datos
+    espaciotemporales, incluyendo funciones para analisis de
+    regresion, visualizacion y procesamiento de datos geoespaciales.
+    Este paquete esta disenado para facilitar el analisis de datos
+    climaticos, ambientales y socioeconomicos con componentes
+    espaciales y temporales.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends: 
+    R (>= 4.0.0)
+Imports:
+    dplyr (>= 1.0.0),
+    terra (>= 1.6.0),
+    sf (>= 1.0.0)
+Suggests:
+    testthat (>= 3.0.0)
