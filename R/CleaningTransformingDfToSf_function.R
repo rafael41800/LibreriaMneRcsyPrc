@@ -1,0 +1,80 @@
+#' Preparación de datos para hacerlos geoespaciales
+#' Preparation of data to transform its in geospacial data
+#'
+#' @param DataFrame Conjunto de datos a procesa / Data set.
+#' @param SpatialReference Referencia espacial a asignar / Spatial references to obtain the reference CRS.
+#' @param latitude Punto a partir del cual se considerará la latitud, por default es 0 / Point from which latitude is considered, by default it is 0.
+#' @param variables Variables que son de interes, en forma de vector, con entradas de tipo string / Dependent variables.
+#'
+#' @returns Un objeto `sf` (Simple Features) listo para análisis geoespacial que incluye:
+#' * Las variables seleccionadas
+#' * Geometrías espaciales transformadas
+#' * Una nueva columna `espcvld` que cuenta las observaciones por especie
+#'
+#' @details
+#' La función realiza los siguientes pasos:
+#' 1. Filtra observaciones al norte de la latitud especificada
+#' 2. Convierte el DataFrame a objeto `sf` con coordenadas geográficas (CRS: 4326)
+#' 3. Transforma las coordenadas al sistema de referencia espacial especificado
+#' 4. Recorta los datos usando la intersección con la referencia espacial
+#' 5. Elimina duplicados espaciales basados en coordenadas y especie
+#' 6. Agrega una columna con el conteo de observaciones por especie (espcvld)
+#'
+#' @importFrom terra terraOptions
+#' @importFrom dplyr filter select mutate distinct
+#' @importFrom sf st_as_sf st_transform st_intersection st_coordinates st_crs
+#'
+#' @examples
+#' \dontrun{
+#' # Crear datos de ejemplo
+#' set.seed(123)
+#' datos_ejemplo <- data.frame(
+#'   longitud = runif(100, -100, -80),
+#'   latitud = runif(100, 15, 30),
+#'   especie = sample(c("Quercus", "Pinus", "Abies"), 100, replace = TRUE),
+#'   altura = runif(100, 5, 25),
+#'   diametro = runif(100, 10, 50)
+#' )
+#'
+#' # Crear objeto espacial de referencia
+#' library(sf)
+#' referencia_espacial <- st_as_sfc(st_bbox(c(
+#'   xmin = -95, xmax = -85,
+#'   ymin = 20, ymax = 25
+#' ), crs = 4326))
+#' referencia_espacial <- st_transform(referencia_espacial, 32614)
+#'
+#' # Definir variables de interés
+#' vars_interes <- c("especie", "altura", "diametro")
+#'
+#' # Usar la función
+#' datos_procesados <- CleaningTransformingDfToSf(
+#'   DataFrame = datos_ejemplo,
+#'   SpatialReference = referencia_espacial,
+#'   latitude = 18,
+#'   variables = vars_interes
+#' )
+#'
+#' # Ver resultados
+#' print(datos_procesados)
+#' summary(datos_procesados$espcvld)
+#' }
+#'
+#' @export
+CleaningTransformingDfToSf <- function(DataFrame, SpatialReference, latitude=0, variables) {
+  if(!dir.exists("~/temp")) dir.create("~/temp")
+  terra::terraOptions(tempdir=("~/temp"), memfrac=0.8)
+  DF.north <- DataFrame %>%
+    dplyr::filter(latitud >= latitude) %>%
+    dplyr::select(all_of(variables)) %>%
+    sf::st_as_sf(coords = c("longitud", "latitud"), crs = 4326)
+  transformation <- sf::st_transform(DF.north, sf::st_crs(SpatialReference))
+  mask <- sf::st_intersection(transformation, SpatialReference)
+  DF.north.clean <- mask %>%
+    dplyr::mutate(XY = paste0(st_coordinates(.)[,1], st_coordinates(.)[,2], especie)) %>%
+    dplyr::distinct(XY, .keep_all = TRUE) %>%
+    dplyr::select(-XY)
+  DF.north.clean <- DF.north.clean %>%
+    dplyr::mutate(espcvld = ave(seq_len(nrow(.)), especie, FUN = length))
+  return(DF.north.clean)
+}
