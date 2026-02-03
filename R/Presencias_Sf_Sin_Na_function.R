@@ -92,5 +92,5 @@ Presencias_Sf_Sin_Na <- function(Data_Sf, raster_referencia_reproyectado, Especi
     resultados[[as.character(l)]] <- Df_Presencias_Sin_Na
     print(paste("Se han eliminado las columnas:", paste(Variables_Puro_NA, collapse = ", ")))
   }
-  return(resultados)
+  return(invisible(resultados))
 }

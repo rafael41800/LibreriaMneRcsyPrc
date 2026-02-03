@@ -3,6 +3,7 @@
 export(CleaningTransformingDfToSf)
 export(Presencias_Sf_Sin_Na)
 export(ProcessingRasterToAssigneCrs)
+export(Simular_Pseudoausencias_Sin_NA)
 importFrom(dplyr,distinct)
 importFrom(dplyr,filter)
 importFrom(dplyr,mutate)
