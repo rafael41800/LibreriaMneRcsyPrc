@@ -1,11 +1,12 @@
-#' Preparación de datos para hacerlos datos geoespaciales
+#' Preparación de datos para hacerlos geoespaciales
+#' Preparation of data to transform its in geospacial data
 #'
-#' @param DataFrame Conjunto de datos a procesar.
-#' @param SpatialReference Referencia espacial a asignar.
-#' @param latitude Punto a partir del cual se considerará la latitud, por default es 0.
-#' @param variables Variables que son de interes, en forma de vector, con entradas de tipo string.
+#' @param DataFrame Conjunto de datos a procesa / Data set.
+#' @param SpatialReference Referencia espacial a asignar / Spatial references to obtain the reference CRS.
+#' @param latitude Punto a partir del cual se considerará la latitud, por default es 0 / Point from which latitude is considered, by default it is 0.
+#' @param variables Variables que son de interes, en forma de vector, con entradas de tipo string / Dependent variables.
 #'
-#' @returns Conjunto de datos listos para usarse como datos geoespaciales
+#' @returns Conjunto de datos listos para usarse como datos geoespaciales / Spatial data set.
 #'
 #' @importFrom terra terraOptions
 #' @importFrom dplyr filter select mutate distinct
