@@ -32,7 +32,7 @@
 #' }
 #' @export
 Simular_Pseudoausencias_Sin_NA_List_Df <- function(Resultados, Raster_CRS_Referencia, Objeto_CRS_referencia){
-  resultados_finales <- list()
+  resultados_finales_List <- list()
   for (i in names(Resultados)) {
     Especie_En_Procesamiento_Df <- Resultados[[i]]
     Presencias_Sin_Na_sf <- Especie_En_Procesamiento_Df %>%
@@ -119,7 +119,7 @@ Simular_Pseudoausencias_Sin_NA_List_Df <- function(Resultados, Raster_CRS_Refere
     Datos_Presencias_Ausencias_Juntos_Df_To_Sf <- Datos_Presencias_Ausencias_Juntos_Df %>%
       sf::st_as_sf(coords = c("x", "y"), crs = terra::crs(Raster_CRS_Referencia)) %>%
       sf::st_transform(sf::st_crs(Objeto_CRS_referencia))
-    resultados_finales[[i]] <- Datos_Presencias_Ausencias_Juntos_Df_To_Sf
+    resultados_finales_List[[i]] <- Datos_Presencias_Ausencias_Juntos_Df_To_Sf
   }
-  return(invisible(resultados_finales))
+  return(invisible(resultados_finales_List))
 }

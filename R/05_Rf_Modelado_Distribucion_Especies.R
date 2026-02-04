@@ -3,10 +3,14 @@
 #' Esta funcion realiza modelado de distribucion de especies (SDM) utilizando
 #' el algoritmo Random Forest para multiples especies simultaneamente.
 #'
+#' @note Esta funcion utiliza los paquetes: caret para particion de datos y matrices
+#'   de confusion, randomForest para el algoritmo de clasificacion, pROC para curvas
+#'   ROC, y dplyr para manipulacion de datos.
+#'
 #' @param Data_Df Dataframe con los datos generales (no utilizado directamente).
 #' @param variables Vector de caracteres con los nombres de las variables predictoras
 #'   que seran utilizadas en el modelo.
-#' @param Resultados Lista con los datos de presencias y ausencias para cada especie.
+#' @param Resultados_List Lista con los datos de presencias y ausencias para cada especie.
 #'   Cada elemento de la lista debe ser un dataframe con columnas para las variables
 #'   predictoras y la variable respuesta 'Presence' (1 para presencia, 0 para ausencia).
 #' @param Raster_Tif_reproyectado Objeto raster con las variables ambientales ya
@@ -28,6 +32,11 @@
 #'   \item{conf_matrix_val}{Matriz de confusion de validacion}
 #'   \item{roc_curve}{Objeto de curva ROC}
 #'
+#' @importFrom caret createDataPartition confusionMatrix
+#' @importFrom randomForest randomForest
+#' @importFrom pROC roc auc
+#' @importFrom dplyr select %>%
+#'
 #' @examples
 #' \dontrun{
 #' # Ejemplo de uso
@@ -44,11 +53,11 @@
 #' resultados_modelos[[1]]$auc
 #' }
 #' @export
-Rf_SDM_multiples_especies <- function(Data_Df, variables, Resultados, Raster_Tif_reproyectado, Registros_Minimos = 5){
+Rf_SDM_multiples_especies <- function(Data_Df, variables, Resultados_List, Raster_Tif_reproyectado, Registros_Minimos = 5){
   modelos_especies <- list()
-  for (m in names(Resultados)) {
-    if(!is.null(Resultados[[m]]) && nrow(as.data.frame(Resultados[[m]])) >= Registros_Minimos) {
-      Datos_Presencias_Ausencias_Juntos_Df <- as.data.frame(Resultados[[m]])
+  for (m in names(Resultados_List)) {
+    if(!is.null(Resultados_List[[m]]) && nrow(as.data.frame(Resultados_List[[m]])) >= Registros_Minimos) {
+      Datos_Presencias_Ausencias_Juntos_Df <- as.data.frame(Resultados_List[[m]])
       Datos_Presencias_Ausencias_Juntos_Df_Clean <- Datos_Presencias_Ausencias_Juntos_Df %>%
         dplyr::select(all_of(variables))
 

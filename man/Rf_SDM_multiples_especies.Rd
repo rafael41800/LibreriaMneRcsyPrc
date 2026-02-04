@@ -7,7 +7,7 @@
 Rf_SDM_multiples_especies(
   Data_Df,
   variables,
-  Resultados,
+  Resultados_List,
   Raster_Tif_reproyectado,
   Registros_Minimos = 5
 )
@@ -18,7 +18,7 @@ Rf_SDM_multiples_especies(
 \item{variables}{Vector de caracteres con los nombres de las variables predictoras
 que seran utilizadas en el modelo.}
 
-\item{Resultados}{Lista con los datos de presencias y ausencias para cada especie.
+\item{Resultados_List}{Lista con los datos de presencias y ausencias para cada especie.
 Cada elemento de la lista debe ser un dataframe con columnas para las variables
 predictoras y la variable respuesta 'Presence' (1 para presencia, 0 para ausencia).}
 
@@ -46,6 +46,11 @@ Retorna una lista donde cada elemento corresponde a una especie y contiene:
 \description{
 Esta funcion realiza modelado de distribucion de especies (SDM) utilizando
 el algoritmo Random Forest para multiples especies simultaneamente.
+}
+\note{
+Esta funcion utiliza los paquetes: caret para particion de datos y matrices
+de confusion, randomForest para el algoritmo de clasificacion, pROC para curvas
+ROC, y dplyr para manipulacion de datos.
 }
 \examples{
 \dontrun{
