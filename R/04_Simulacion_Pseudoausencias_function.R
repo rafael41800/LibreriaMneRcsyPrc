@@ -31,7 +31,7 @@
 #' )
 #' }
 #' @export
-Simular_Pseudoausencias_Sin_NA <- function(Resultados, Raster_CRS_Referencia, Objeto_CRS_referencia){
+Simular_Pseudoausencias_Sin_NA_List_Df <- function(Resultados, Raster_CRS_Referencia, Objeto_CRS_referencia){
   resultados_finales <- list()
   for (i in names(Resultados)) {
     Especie_En_Procesamiento_Df <- Resultados[[i]]
