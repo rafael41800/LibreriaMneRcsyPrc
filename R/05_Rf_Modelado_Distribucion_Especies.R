@@ -117,8 +117,9 @@ Rf_SDM_multiples_especies <- function(Data_Df, variables, Resultados, Raster_Tif
 
       modelos_especies[[m]] <- modelo_info
 
-      saveRDS(RF_model, paste0("modelo_randomforest_", m, ".rds"))
-      saveRDS(Datos_Para_Validacion, paste0("datos_validacion_final_", m, ".rds"))
+      ruta_almacenamiento <- "C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf"
+      saveRDS(RF_model, paste0(ruta_almacenamiento, "modelo_randomforest_", m, ".rds"))
+      saveRDS(Datos_Para_Validacion, paste0(ruta_almacenamiento, "datos_validacion_final_", m, ".rds"))
     }
   }
   return(modelos_especies)
