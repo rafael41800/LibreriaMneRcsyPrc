@@ -16,7 +16,10 @@ RoxygenNote: 7.3.3
 Depends: 
     R (>= 4.0.0)
 Imports:
+    caret,
     dplyr (>= 1.0.0),
+    pROC,
+    randomForest,
     terra (>= 1.6.0),
     sf (>= 1.0.0)
 Suggests:
