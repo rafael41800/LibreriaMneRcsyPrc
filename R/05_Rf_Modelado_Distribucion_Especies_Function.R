@@ -450,6 +450,7 @@ Rf_SDM_multiple_species <- function(Data_Df, variables, Resultados_List, Raster_
       )
       modelos_especies[[m]] <- modelo_info
       ruta_almacenamiento <- "C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf"
+      # modelo y datos de validación en disco
       saveRDS(RF_model, paste0(ruta_almacenamiento, "modelo_randomforest_", m, ".rds"))
       saveRDS(Datos_Para_Validacion, paste0(ruta_almacenamiento, "datos_validacion_final_", m, ".rds"))
     }
