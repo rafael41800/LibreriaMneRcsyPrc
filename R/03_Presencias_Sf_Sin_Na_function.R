@@ -228,7 +228,7 @@
 #'   / for filtering dataframes based on conditions
 #'
 #' @export
-Presencias_Sf_Sin_Na_List_Df <- function(Data_Sf, raster_referencia_reproyectado, Especie_Valida = "especievalida"){
+Presences_Sf_No_Na_List_Df <- function(Data_Sf, raster_referencia_reproyectado, Especie_Valida = "especievalida"){
   ListaEspecies <- unique(Data_Sf[[Especie_Valida]])
   resultados <- list()
   for (l in ListaEspecies) {
