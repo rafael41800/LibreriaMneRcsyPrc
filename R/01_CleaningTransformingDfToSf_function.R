@@ -1,32 +1,103 @@
-#' Preparación de datos para hacerlos geoespaciales
-#' Preparation of data to transform its in geospacial data
+#' @title Preparación y limpieza de datos para análisis geoespacial / Data Preparation and Cleaning for Geospatial Analysis
 #'
-#' @param DataFrame Conjunto de datos a procesa / Data set.
-#' @param SpatialReference Referencia espacial a asignar / Spatial references to obtain the reference CRS.
-#' @param latitude Punto a partir del cual se considerará la latitud, por default es 0 / Point from which latitude is considered, by default it is 0.
-#' @param variables Variables que son de interes, en forma de vector, con entradas de tipo string / Dependent variables.
+#' @description
+#' Transforma un data.frame con coordenadas en un objeto `sf` (Simple Features)
+#' listo para análisis espacial, aplicando filtros, transformaciones de CRS,
+#' recorte y eliminación de duplicados.
+#' /
+#' Transforms a data.frame with coordinates into an `sf` (Simple Features) object
+#' ready for spatial analysis, applying filters, CRS transformations,
+#' clipping, and duplicate removal.
 #'
-#' @returns Un objeto `sf` (Simple Features) listo para análisis geoespacial que incluye:
-#' * Las variables seleccionadas
-#' * Geometrías espaciales transformadas
-#' * Una nueva columna `espcvld` que cuenta las observaciones por especie
+#' @param DataFrame `data.frame` con los datos a procesar. Debe contener las columnas
+#'   `longitud`, `latitud` y `especie`.
+#'   / `data.frame` with data to process. Must contain columns
+#'   `longitud`, `latitud`, and `especie`.
+#'
+#' @param SpatialReference Objeto espacial (`sf` o `sfc`) que define la referencia
+#'   espacial de destino y área de recorte.
+#'   / Spatial object (`sf` or `sfc`) defining the target spatial reference
+#'   and clipping area.
+#'
+#' @param latitude Valor numérico que define el límite mínimo de latitud para
+#'   filtrar observaciones. Por defecto es 0 (ecuador).
+#'   / Numeric value defining the minimum latitude threshold for
+#'   filtering observations. Default is 0 (equator).
+#'
+#' @param variables Vector de caracteres con los nombres de las columnas a
+#'   conservar en el resultado.
+#'   / Character vector with column names to
+#'   retain in the output.
+#'
+#' @returns
+#' Un objeto `sf` con las siguientes características:
+#' * Geometrías en el sistema de referencia de `SpatialReference`
+#' * Variables seleccionadas mediante el parámetro `variables`
+#' * Columna adicional `espcvld` con el conteo de observaciones por especie
+#' * Sin duplicados espaciales (mismas coordenadas y misma especie)
+#' * Recortado al área definida por `SpatialReference`
+#' * Observaciones al norte de `latitude`
+#' /
+#' An `sf` object with the following features:
+#' * Geometries in the coordinate reference system of `SpatialReference`
+#' * Variables selected through the `variables` parameter
+#' * Additional column `espcvld` with observation count per species
+#' * No spatial duplicates (same coordinates and same species)
+#' * Clipped to the area defined by `SpatialReference`
+#' * Observations north of `latitude`
 #'
 #' @details
-#' La función realiza los siguientes pasos:
-#' 1. Filtra observaciones al norte de la latitud especificada
-#' 2. Convierte el DataFrame a objeto `sf` con coordenadas geográficas (CRS: 4326)
-#' 3. Transforma las coordenadas al sistema de referencia espacial especificado
-#' 4. Recorta los datos usando la intersección con la referencia espacial
-#' 5. Elimina duplicados espaciales basados en coordenadas y especie
-#' 6. Agrega una columna con el conteo de observaciones por especie (espcvld)
+#' La función ejecuta el siguiente pipeline de procesamiento:
+#' 1. **Filtrado**: Conserva observaciones con `latitud >= latitude`
+#' 2. **Selección**: Mantiene solo las variables especificadas en `variables`
+#' 3. **Conversión a `sf`**: Crea geometrías puntuales desde coordenadas
+#'    geográficas (CRS: WGS84, EPSG:4326)
+#' 4. **Transformación CRS**: Proyecta al sistema de coordenadas de
+#'    `SpatialReference`
+#' 5. **Recorte**: Intersecta con el área de `SpatialReference`
+#' 6. **Deduplicación**: Elimina puntos con mismas coordenadas y especie
+#' 7. **Conteo**: Agrega columna `espcvld` con frecuencia por especie
+#' /
+#' The function executes the following processing pipeline:
+#' 1. **Filtering**: Keeps observations with `latitud >= latitude`
+#' 2. **Selection**: Retains only variables specified in `variables`
+#' 3. **Conversion to `sf`**: Creates point geometries from geographic
+#'    coordinates (CRS: WGS84, EPSG:4326)
+#' 4. **CRS Transformation**: Projects to the coordinate system of
+#'    `SpatialReference`
+#' 5. **Clipping**: Intersects with the area of `SpatialReference`
+#' 6. **Deduplication**: Removes points with same coordinates and species
+#' 7. **Counting**: Adds column `espcvld` with frequency per species
 #'
-#' @importFrom terra terraOptions
-#' @importFrom dplyr filter select mutate distinct
+#' @note
+#' * La columna `especie` debe estar presente aunque no se incluya en `variables`
+#' * La deduplicación se basa en coordenadas transformadas (no originales)
+#' * Se crea un directorio temporal `~/temp` para manejo de datos raster si es necesario
+#' * La función asume que las coordenadas están en grados decimales (WGS84)
+#' /
+#' * The `especie` column must be present even if not included in `variables`
+#' * Deduplication is based on transformed coordinates (not originals)
+#' * A temporary directory `~/temp` is created for raster data handling if needed
+#' * The function assumes coordinates are in decimal degrees (WGS84)
+#'
+#' @section Advertencias/Warnings:
+#' * Si `latitude` es mayor que el límite norte de `SpatialReference`, el resultado
+#'   podría ser vacío
+#' * La proyección podría distorsionar distancias si se usa entre hemisferios
+#' * El proceso de intersección podría ser lento con muchos polígonos complejos
+#' /
+#' * If `latitude` is greater than the northern limit of `SpatialReference`, the result
+#'   could be empty
+#' * Projection may distort distances if used across hemispheres
+#' * Intersection process could be slow with many complex polygons
+#'
 #' @importFrom sf st_as_sf st_transform st_intersection st_coordinates st_crs
+#' @importFrom dplyr filter select mutate distinct %>%
+#' @importFrom terra terraOptions
 #'
 #' @examples
 #' \dontrun{
-#' # Crear datos de ejemplo
+#' # Crear datos de ejemplo / Create example data
 #' set.seed(123)
 #' datos_ejemplo <- data.frame(
 #'   longitud = runif(100, -100, -80),
@@ -36,29 +107,33 @@
 #'   diametro = runif(100, 10, 50)
 #' )
 #'
-#' # Crear objeto espacial de referencia
+#' # Crear polígono de referencia (Zona UTM 14N) / Create reference polygon (UTM Zone 14N)
 #' library(sf)
-#' referencia_espacial <- st_as_sfc(st_bbox(c(
-#'   xmin = -95, xmax = -85,
-#'   ymin = 20, ymax = 25
-#' ), crs = 4326))
-#' referencia_espacial <- st_transform(referencia_espacial, 32614)
+#' bbox <- st_bbox(c(xmin = -95, xmax = -85, ymin = 20, ymax = 25), crs = 4326)
+#' referencia <- st_as_sfc(bbox) %>% st_transform(32614)
 #'
-#' # Definir variables de interés
-#' vars_interes <- c("especie", "altura", "diametro")
-#'
-#' # Usar la función
-#' datos_procesados <- CleaningTransformingDfToSf(
+#' # Procesar datos / Process data
+#' datos_espaciales <- CleaningTransformingDfToSf(
 #'   DataFrame = datos_ejemplo,
-#'   SpatialReference = referencia_espacial,
+#'   SpatialReference = referencia,
 #'   latitude = 18,
-#'   variables = vars_interes
+#'   variables = c("especie", "altura", "diametro")
 #' )
 #'
-#' # Ver resultados
-#' print(datos_procesados)
-#' summary(datos_procesados$espcvld)
+#' # Inspeccionar resultados / Inspect results
+#' class(datos_espaciales)
+#' nrow(datos_espaciales)
+#' table(datos_espaciales$especie, datos_espaciales$espcvld)
+#'
+#' # Visualización básica / Basic visualization
+#' plot(st_geometry(datos_espaciales), pch = 16,
+#'      col = factor(datos_espaciales$especie))
 #' }
+#'
+#' @seealso
+#' * [sf::st_as_sf()] para conversión a objetos espaciales / for conversion to spatial objects
+#' * [sf::st_transform()] para transformaciones de CRS / for CRS transformations
+#' * [sf::st_intersection()] para operaciones de recorte / for clipping operations
 #'
 #' @export
 CleaningTransformingDfToSf <- function(DataFrame, SpatialReference, latitude=0, variables) {

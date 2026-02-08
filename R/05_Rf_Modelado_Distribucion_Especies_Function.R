@@ -53,7 +53,7 @@
 #' resultados_modelos[[1]]$auc
 #' }
 #' @export
-Rf_SDM_multiples_especies <- function(Data_Df, variables, Resultados_List, Raster_Tif_reproyectado, Registros_Minimos = 5){
+Rf_SDM_multiple_species <- function(Data_Df, variables, Resultados_List, Raster_Tif_reproyectado, Registros_Minimos = 5){
   modelos_especies <- list()
   for (m in names(Resultados_List)) {
     if(!is.null(Resultados_List[[m]]) && nrow(as.data.frame(Resultados_List[[m]])) >= Registros_Minimos) {
