@@ -17,26 +17,26 @@ Must be a \code{SpatRaster} object from terra.}
 Puede ser:
 / Spatial reference from which we will take the CRS. Can be:
 \itemize{
-\item{\strong{Objeto espacial} (\code{sf}, \code{sfc}, \code{SpatVector}) - Se usará su CRS
-y se recortará el raster al área del polígono (si es polígono)
+\item{\strong{Objeto espacial} (\code{sf}, \code{sfc}, \code{SpatVector}) - Se usara su CRS
+y se recortara el raster al area del poligono (si es poligono)
 / \strong{Spatial object} (\code{sf}, \code{sfc}, \code{SpatVector}) - Its CRS will
 be used and the raster will be cropped to the polygon area
 (if it's a polygon)}
-\item{\strong{CRS como caracter o numérico} (ej: \code{"EPSG:4326"} o \code{4326}) -
-Solo se proyectará el raster al CRS especificado
+\item{\strong{CRS como caracter o numerico} (ej: \code{"EPSG:4326"} o \code{4326}) -
+Solo se proyectara el raster al CRS especificado
 / \strong{CRS as character or numeric} (e.g., \code{"EPSG:4326"} or \code{4326}) -
 Only raster projection will be applied to the specified CRS}
-\item{\strong{Objeto \code{crs}} de terra - CRS directo para la proyección
+\item{\strong{Objeto \code{crs}} de terra - CRS directo para la proyeccion
 / \strong{\code{crs} object} from terra - Direct CRS for projection}
 }}
 }
 \value{
-Un objeto \code{SpatRaster} procesado con las siguientes características:
+Un objeto \code{SpatRaster} procesado con las siguientes caracteristicas:
 \itemize{
 \item Proyectado al CRS especificado por \code{SpatialReference}
-\item Recortado al área del polígono si \code{SpatialReference} es un objeto espacial
-de tipo polígono
-\item Con valores NA fuera del área del polígono (cuando se aplica recorte)
+\item Recortado al area del poligono si \code{SpatialReference} es un objeto espacial
+de tipo poligono
+\item Con valores NA fuera del area del poligono (cuando se aplica recorte)
 \item Conservando los metadatos originales cuando es posible
 /
 A processed \code{SpatRaster} object with the following features:
@@ -49,8 +49,8 @@ spatial object
 }
 \description{
 Asigna un sistema de referencia de coordenadas (CRS) a un raster y
-opcionalmente lo recorta a un área espacial definida. La función maneja
-diferentes tipos de referencia espacial (objetos espaciales, CRS numéricos
+opcionalmente lo recorta a un area espacial definida. La funcion maneja
+diferentes tipos de referencia espacial (objetos espaciales, CRS numericos
 o textuales) y aplica las transformaciones necesarias.
 /
 Assigns a coordinate reference system (CRS) to a raster and optionally
@@ -59,19 +59,19 @@ of spatial references (spatial objects, numeric or textual CRS) and
 applies necessary transformations.
 }
 \details{
-La función realiza las siguientes operaciones en secuencia:
+La funcion realiza las siguientes operaciones en secuencia:
 \enumerate{
-\item \strong{Configuración del entorno}: Establece directorio temporal para
+\item \strong{Configuracion del entorno}: Establece directorio temporal para
 manejo eficiente de memoria.
-\item \strong{Validación de entrada}: Verifica que \code{RasterObject} sea un
-\code{SpatRaster} válido.
-\item \strong{Detección de tipo de referencia}: Identifica si \code{SpatialReference} es
+\item \strong{Validacion de entrada}: Verifica que \code{RasterObject} sea un
+\code{SpatRaster} valido.
+\item \strong{Deteccion de tipo de referencia}: Identifica si \code{SpatialReference} es
 un objeto espacial, CRS textual/numerico, o objeto \code{crs}.
-\item \strong{Proyección}: Transforma el raster al CRS de destino usando
+\item \strong{Proyeccion}: Transforma el raster al CRS de destino usando
 \code{terra::project()}.
 \item \strong{Recorte condicional}: Si \code{SpatialReference} es un objeto espacial
-con geometría de polígono, aplica \code{terra::crop()} con \code{mask = TRUE}
-para recortar y enmascarar simultáneamente.
+con geometria de poligono, aplica \code{terra::crop()} con \code{mask = TRUE}
+para recortar y enmascarar simultaneamente.
 /
 The function performs the following operations in sequence:
 \item \strong{Environment setup}: Sets temporary directory for efficient
@@ -89,16 +89,16 @@ to simultaneously crop and mask.
 }
 \note{
 \itemize{
-\item La función utiliza \code{terra::crop()} con \code{mask = TRUE} cuando se proporciona
-un polígono, lo que asegura que solo las celdas dentro del polígono sean
-retenidas, estableciendo las celdas externas a NA. Esto es más eficiente
+\item La funcion utiliza \code{terra::crop()} con \code{mask = TRUE} cuando se proporciona
+un poligono, lo que asegura que solo las celdas dentro del poligono sean
+retenidas, estableciendo las celdas externas a NA. Esto es mas eficiente
 que realizar crop y mask por separado.
-\item Para objetos \code{sf} o \code{sfc}, la función convierte automáticamente a
+\item Para objetos \code{sf} o \code{sfc}, la funcion convierte automaticamente a
 \code{SpatVector} para compatibilidad con terra.
-\item El parámetro \code{mask = TRUE} en \code{terra::crop()} puede ser más lento para
-polígonos muy complejos, pero produce resultados más precisos.
+\item El parametro \code{mask = TRUE} en \code{terra::crop()} puede ser mas lento para
+poligonos muy complejos, pero produce resultados mas precisos.
 \item Se recomienda que el raster de entrada tenga un CRS definido para
-obtener mejores resultados en la transformación.
+obtener mejores resultados en la transformacion.
 /
 \item The function uses \code{terra::crop()} with \code{mask = TRUE} when a polygon is
 provided, which ensures that only cells within the polygon are retained,
@@ -115,14 +115,14 @@ better transformation results.
 \section{Advertencias/Warnings}{
 
 \itemize{
-\item Si el raster de entrada no tiene CRS definido y se solicita proyección,
-se asumirá WGS84 (EPSG:4326) y se mostrará una advertencia.
-\item El recorte con polígonos muy complejos o con muchos agujeros puede
+\item Si el raster de entrada no tiene CRS definido y se solicita proyeccion,
+se asumira WGS84 (EPSG:4326) y se mostrara una advertencia.
+\item El recorte con poligonos muy complejos o con muchos agujeros puede
 consumir mucha memoria y tiempo de procesamiento.
 \item Las transformaciones entre CRS con diferentes elipsoides o datums pueden
-introducir pequeñas distorsiones.
-\item Si el área del polígono está completamente fuera de la extensión del
-raster, el resultado será un raster vacío.
+introducir pequenas distorsiones.
+\item Si el area del poligono esta completamente fuera de la extension del
+raster, el resultado sera un raster vacio.
 /
 \item If the input raster has no defined CRS and projection is requested,
 WGS84 (EPSG:4326) will be assumed and a warning will be shown.
@@ -137,7 +137,7 @@ the result will be an empty raster.
 
 \examples{
 \dontrun{
-# Ejemplo 1: Proyectar raster usando un CRS numérico
+# Ejemplo 1: Proyectar raster usando un CRS numerico
 # Example 1: Project raster using a numeric CRS
 library(terra)
 
@@ -151,11 +151,11 @@ values(r) <- runif(ncell(r))
 raster_proyectado <- ProcessingRasterToAssigneCrs(r, 4326)
 print(raster_proyectado)
 
-# Ejemplo 2: Proyectar y recortar usando un polígono sf
+# Ejemplo 2: Proyectar y recortar usando un poligono sf
 # Example 2: Project and crop using an sf polygon
 library(sf)
 
-# Crear un polígono de ejemplo en WGS84
+# Crear un poligono de ejemplo en WGS84
 # Create example polygon in WGS84
 poligono <- st_as_sfc("POLYGON((2 2, 8 2, 8 8, 2 8, 2 2))", crs = 4326)
 
@@ -191,13 +191,26 @@ print(raster_sin_crs)
 }
 \seealso{
 \itemize{
-\item \code{\link[terra:project]{terra::project()}} para transformaciones de sistema de coordenadas de rasters
-/ for coordinate system transformations of rasters
-\item \code{\link[terra:crop]{terra::crop()}} para recortar rasters a áreas específicas
-/ for cropping rasters to specific areas
-\item \code{\link[terra:crs]{terra::crs()}} para manejar sistemas de referencia de coordenadas
-/ for handling coordinate reference systems
-\item \code{\link[sf:st_crs]{sf::st_crs()}} para obtener CRS de objetos sf
-/ for getting CRS from sf objects
+\item \code{\link[terra]{project}} para transformaciones de sistema de coordenadas de rasters /
+\code{\link[terra]{project}} for coordinate system transformations of rasters
+\item \code{\link[terra]{crop}} para recortar rasters a areas especificas /
+\code{\link[terra]{crop}} for cropping rasters to specific areas
+\item \code{\link[terra]{crs}} para manejar sistemas de referencia de coordenadas /
+\code{\link[terra]{crs}} for handling coordinate reference systems
+\item \code{\link[sf]{st_crs}} para obtener CRS de objetos sf /
+\code{\link[sf]{st_crs}} for getting CRS from sf objects
 }
 }
+\concept{funciones_raster, funciones_espaciales, funciones_GIS /
+raster_functions, spatial_functions, GIS_functions}
+\keyword{CRS,}
+\keyword{GIS,}
+\keyword{cropping,}
+\keyword{espacial,}
+\keyword{procesamiento}
+\keyword{processing}
+\keyword{projection,}
+\keyword{proyeccion,}
+\keyword{raster,}
+\keyword{recorte,}
+\keyword{spatial}

@@ -12,39 +12,39 @@ Presences_Sf_No_Na_List_Df(
 }
 \arguments{
 \item{Data_Sf}{Objeto \code{sf} con datos de presencia de especies. Debe contener
-geometrías puntuales y la columna especificada en \code{Especie_Valida}.
+geometrias puntuales y la columna especificada en \code{Especie_Valida}.
 / \code{sf} object with species presence data. Must contain point geometries
 and the column specified in \code{Especie_Valida}.}
 
 \item{raster_referencia_reproyectado}{Objeto \code{SpatRaster} proyectado con
 las variables ambientales. Debe estar en el mismo sistema de coordenadas
-que \code{Data_Sf} para una extracción correcta.
+que \code{Data_Sf} para una extraccion correcta.
 / Projected \code{SpatRaster} object with environmental variables. Must be in
 the same coordinate system as \code{Data_Sf} for correct extraction.}
 
 \item{Especie_Valida}{Nombre de la columna que contiene los identificadores
-de especie. Puede ser nombre científico, código de especie u otro
-identificador único.
+de especie. Puede ser nombre cientifico, codigo de especie u otro
+identificador unico.
 / Name of the column containing species identifiers. Can be scientific
 name, species code, or other unique identifier.}
 }
 \value{
 Una lista con los siguientes elementos:
 \itemize{
-\item Un dataframe por cada especie única encontrada en \code{Data_Sf}
+\item Un dataframe por cada especie unica encontrada en \code{Data_Sf}
 \item Cada dataframe contiene:
 \itemize{
-\item Coordenadas (\code{longitud}, \code{latitud}) extraídas de las geometrías
+\item Coordenadas (\code{longitud}, \code{latitud}) extraidas de las geometrias
 \item Todos los atributos originales del objeto \code{sf}
-\item Valores extraídos de todas las capas del raster (\code{layer1}, \code{layer2}, ...)
+\item Valores extraidos de todas las capas del raster (\code{layer1}, \code{layer2}, ...)
 \item Variable \code{Presencia} con valor constante \code{1} para todos los registros
 }
 \item Todos los dataframes han sido limpiados eliminando:
 \itemize{
-\item Columnas que son completamente NA (sin valores útiles)
+\item Columnas que son completamente NA (sin valores utiles)
 \item Filas con cualquier valor NA en las columnas restantes
 }
-\item Los nombres de la lista corresponden a las especies únicas
+\item Los nombres de la lista corresponden a las especies unicas
 /
 A list with the following elements:
 \item One dataframe per unique species found in \code{Data_Sf}
@@ -65,9 +65,9 @@ A list with the following elements:
 }
 \description{
 Extrae y procesa datos de presencia de especies desde un objeto \code{sf},
-combinándolos con valores de variables ambientales de un raster y
-eliminando todos los registros incompletos (con valores NA). La función
-genera dataframes limpios y listos para análisis de distribución de especies.
+combinandolos con valores de variables ambientales de un raster y
+eliminando todos los registros incompletos (con valores NA). La funcion
+genera dataframes limpios y listos para analisis de distribucion de especies.
 /
 Extracts and processes species presence data from an \code{sf} object,
 combining them with environmental variable values from a raster and
@@ -75,23 +75,23 @@ removing all incomplete records (with NA values). The function produces
 clean dataframes ready for species distribution analysis.
 }
 \details{
-La función ejecuta el siguiente flujo de procesamiento para cada especie:
+La funcion ejecuta el siguiente flujo de procesamiento para cada especie:
 \enumerate{
-\item \strong{Filtrado por especie}: Separa los registros para cada especie única
-\item \strong{Extracción de coordenadas}: Convierte geometrías sf a coordenadas X,Y
-\item \strong{Extracción de valores raster}: Obtiene valores de todas las bandas del
-raster en cada ubicación puntual
-\item \strong{Combinación de datos}: Crea un dataframe integrando coordenadas,
+\item \strong{Filtrado por especie}: Separa los registros para cada especie unica
+\item \strong{Extraccion de coordenadas}: Convierte geometrias sf a coordenadas X,Y
+\item \strong{Extraccion de valores raster}: Obtiene valores de todas las bandas del
+raster en cada ubicacion puntual
+\item \strong{Combinacion de datos}: Crea un dataframe integrando coordenadas,
 atributos originales y valores raster
 \item \strong{Limpieza de columnas}: Elimina columnas que contienen solo valores NA
 \item \strong{Limpieza de filas}: Elimina filas que contienen cualquier valor NA
 en las columnas restantes
-\item \strong{Adición de variable respuesta}: Agrega columna \code{Presencia = 1} para
-modelado de distribución de especies
+\item \strong{Adicion de variable respuesta}: Agrega columna \code{Presencia = 1} para
+modelado de distribucion de especies
 }
 
-La limpieza en dos etapas (columnas luego filas) optimiza la retención de
-datos útiles y garantiza datasets completos para análisis posteriores.
+La limpieza en dos etapas (columnas luego filas) optimiza la retencion de
+datos utiles y garantiza datasets completos para analisis posteriores.
 /
 The function executes the following processing flow for each species:
 \enumerate{
@@ -113,14 +113,14 @@ data and ensures complete datasets for subsequent analysis.
 }
 \note{
 \itemize{
-\item La función requiere que \code{Data_Sf} y \code{raster_referencia_reproyectado}
-estén en el mismo sistema de coordenadas de referencia (CRS). Si no lo
-están, los valores extraídos del raster pueden ser incorrectos.
-\item Las geometrías deben ser puntos (\code{POINT}). Otros tipos de geometría
+\item La funcion requiere que \code{Data_Sf} y \code{raster_referencia_reproyectado}
+esten en el mismo sistema de coordenadas de referencia (CRS). Si no lo
+estan, los valores extraidos del raster pueden ser incorrectos.
+\item Las geometrias deben ser puntos (\code{POINT}). Otros tipos de geometria
 pueden causar errores o resultados inesperados.
 \item El orden de limpieza es importante: primero se eliminan columnas
-completamente NA, luego filas con NA. Esto maximiza la retención de
-datos válidos.
+completamente NA, luego filas con NA. Esto maximiza la retencion de
+datos validos.
 \item La columna \code{Especie_Valida} debe existir en \code{Data_Sf} y contener
 valores no nulos para todas las observaciones.
 \item La variable \code{Presencia} siempre tiene valor 1, ya que todos los
@@ -142,14 +142,14 @@ confirmed presences.
 \section{Advertencias/Warnings}{
 
 \itemize{
-\item Si el raster y el objeto sf tienen diferentes CRS, la función no fallará
-pero los valores extraídos pueden no corresponder a las ubicaciones reales.
-\item Especies con muy pocos registros pueden resultar en dataframes vacíos
-después de la limpieza de NA.
+\item Si el raster y el objeto sf tienen diferentes CRS, la funcion no fallara
+pero los valores extraidos pueden no corresponder a las ubicaciones reales.
+\item Especies con muy pocos registros pueden resultar en dataframes vacios
+despues de la limpieza de NA.
 \item Columnas con nombres duplicados entre el objeto sf y el raster pueden
 causar conflictos de nombres en el dataframe resultante.
-\item El proceso de extracción de valores raster puede ser lento con muchos
-puntos (miles o más).
+\item El proceso de extraccion de valores raster puede ser lento con muchos
+puntos (miles o mas).
 /
 \item If the raster and sf object have different CRS, the function will not fail
 but extracted values may not correspond to actual locations.
@@ -164,7 +164,7 @@ naming conflicts in the resulting dataframe.
 
 \examples{
 \dontrun{
-# Ejemplo 1: Procesar datos de mamíferos de Oaxaca
+# Ejemplo 1: Procesar datos de mamiferos de Oaxaca
 # Example 1: Process mammal data from Oaxaca
 library(sf)
 library(dplyr)
@@ -198,13 +198,13 @@ resultados <- Presencias_Sf_Sin_Na(
 
 # Ver resultados
 # Check results
-print(paste("Número de especies procesadas:", length(resultados)))
+print(paste("Numero de especies procesadas:", length(resultados)))
 
 if(length(resultados) > 0) {
   # Ver primera especie
   # Check first species
   print(paste("Primera especie:", names(resultados)[1]))
-  print(paste("Número de registros:", nrow(resultados[[1]])))
+  print(paste("Numero de registros:", nrow(resultados[[1]])))
   print(head(resultados[[1]]))
 
   # Resumen de todas las especies
@@ -246,13 +246,33 @@ resultados3 <- Presencias_Sf_Sin_Na(
 }
 \seealso{
 \itemize{
-\item \code{\link[terra:extract]{terra::extract()}} para extraer valores raster en puntos
-/ for extracting raster values at points
-\item \code{\link[sf:st_coordinates]{sf::st_coordinates()}} para extraer coordenadas de objetos sf
-/ for extracting coordinates from sf objects
-\item \code{\link[stats:complete.cases]{stats::complete.cases()}} para identificar filas completas sin NA
-/ for identifying complete rows without NA
-\item \code{\link[dplyr:filter]{dplyr::filter()}} para filtrar dataframes basados en condiciones
-/ for filtering dataframes based on conditions
+\item \code{\link[terra]{extract}} para extraer valores raster en puntos /
+\code{\link[terra]{extract}} for extracting raster values at points
+\item \code{\link[sf]{st_coordinates}} para extraer coordenadas de objetos sf /
+\code{\link[sf]{st_coordinates}} for extracting coordinates from sf objects
+\item \code{\link[stats]{complete.cases}} para identificar filas completas sin NA /
+\code{\link[stats]{complete.cases}} for identifying complete rows without NA
+\item \code{\link[dplyr]{filter}} para filtrar dataframes basados en condiciones /
+\code{\link[dplyr]{filter}} for filtering dataframes based on conditions
 }
 }
+\concept{funciones_SDM, funciones_limpieza_datos, funciones_espaciales /
+SDM_functions, data_cleaning_functions, spatial_functions}
+\keyword{GIS}
+\keyword{GIS,}
+\keyword{SDM,}
+\keyword{cleaning,}
+\keyword{data}
+\keyword{datos,}
+\keyword{de}
+\keyword{extraccion}
+\keyword{extraction,}
+\keyword{limpieza}
+\keyword{presence-absence,}
+\keyword{presences,}
+\keyword{presencia-ausencia,}
+\keyword{presencias,}
+\keyword{raster}
+\keyword{raster,}
+\keyword{valores}
+\keyword{value}

@@ -2,69 +2,417 @@
 % Please edit documentation in R/05_Rf_Modelado_Distribucion_Especies_Function.R
 \name{Rf_SDM_multiple_species}
 \alias{Rf_SDM_multiple_species}
-\title{Modelado de distribucion de especies con Random Forest}
+\title{Modelado de distribucion de especies con Random Forest / Species Distribution Modeling with Random Forest}
 \usage{
 Rf_SDM_multiple_species(
   Data_Df,
   variables,
   Resultados_List,
   Raster_Tif_reproyectado,
-  Registros_Minimos = 5
+  Registros_Minimos = 10
 )
 }
 \arguments{
-\item{Data_Df}{Dataframe con los datos generales (no utilizado directamente).}
+\item{Data_Df}{Dataframe con los datos generales del estudio. Aunque no se
+utiliza directamente en los modelos, proporciona contexto y puede ser usado
+para validaciones o referencias cruzadas. Debe contener al menos las
+variables ambientales utilizadas en el modelado.
+/
+Dataframe with general study data. Although not directly used in models,
+it provides context and can be used for validations or cross-references.
+Must contain at least the environmental variables used in modeling.}
 
-\item{variables}{Vector de caracteres con los nombres de las variables predictoras
-que seran utilizadas en el modelo.}
+\item{variables}{Vector de caracteres con los nombres de las variables
+predictoras que ser\u00e1n utilizadas en los modelos. Estas variables deben:
+\itemize{
+\item Estar presentes en todos los dataframes de \code{Resultados_List}
+\item Corresponder a capas en \code{Raster_Tif_reproyectado}
+\item No contener valores NA (deben haber sido limpiados previamente)
+\item Ser num\u00e9ricas para Random Forest
+/
+Character vector with names of predictor variables to be used in models.
+These variables must:
+\item Be present in all dataframes of \code{Resultados_List}
+\item Correspond to layers in \code{Raster_Tif_reproyectado}
+\item Not contain NA values (should have been cleaned previously)
+\item Be numeric for Random Forest
+}}
 
-\item{Resultados_List}{Lista con los datos de presencias y ausencias para cada especie.
-Cada elemento de la lista debe ser un dataframe con columnas para las variables
-predictoras y la variable respuesta 'Presence' (1 para presencia, 0 para ausencia).}
+\item{Resultados_List}{Lista con los datos de presencias y pseudoausencias
+para cada especie. Cada elemento debe ser un dataframe con:
+\itemize{
+\item Una fila por registro (presencia o pseudoausencia)
+\item Columnas para todas las variables especificadas en \code{variables}
+\item Columna \code{Presence} con valores \code{1} (presencia) y \code{0} (pseudoausencia)
+\item Geometr\u00eda espacial si es objeto sf (ser\u00e1 convertida a dataframe)
+/
+List with presence and pseudoabsence data for each species. Each element
+must be a dataframe with:
+\item One row per record (presence or pseudoabsence)
+\item Columns for all variables specified in \code{variables}
+\item \code{Presence} column with values \code{1} (presence) and \code{0} (pseudoabsence)
+\item Spatial geometry if it's an sf object (will be converted to dataframe)
+}}
 
-\item{Raster_Tif_reproyectado}{Objeto raster con las variables ambientales ya
-reproyectadas al sistema de coordenadas de referencia.}
+\item{Raster_Tif_reproyectado}{Objeto \code{SpatRaster} de terra con las variables
+ambientales ya reproyectadas al sistema de coordenadas de referencia. Se
+utiliza para:
+\itemize{
+\item Validar que las variables en los datos correspondan a capas del raster
+\item Posiblemente para predicciones espaciales futuras (aunque no en esta funci\u00f3n)
+\item Referencia de resoluci\u00f3n y extensi\u00f3n espacial
+/
+\code{SpatRaster} object from terra with environmental variables already
+reprojected to the reference coordinate system. It is used for:
+\item Validating that variables in data correspond to raster layers
+\item Possibly for future spatial predictions (though not in this function)
+\item Reference of spatial resolution and extent
+}}
 
-\item{Registros_Minimos}{Numero minimo de registros que debe tener una especie
-para ser modelada (por defecto 5).}
+\item{Registros_Minimos}{N\u00famero m\u00ednimo de registros que debe tener una especie
+para ser modelada. Incluye tanto presencias como pseudoausencias.
+Por defecto es 10. Especies con menos registros ser\u00e1n omitidas.
+Este umbral asegura modelos estad\u00edsticamente robustos.
+/
+Minimum number of records a species must have to be modeled. Includes
+both presences and pseudoabsences. Default is 10. Species with fewer
+records will be omitted. This threshold ensures statistically robust models.}
 }
 \value{
-Retorna una lista donde cada elemento corresponde a una especie y contiene:
-\item{modelo}{Objeto randomForest entrenado}
-\item{importance}{Importancia de las variables}
-\item{accuracy_train}{Accuracy en datos de entrenamiento}
-\item{accuracy_test}{Accuracy en datos de prueba}
-\item{sensitivity}{Sensibilidad del modelo}
-\item{specificity}{Especificidad del modelo}
-\item{kappa}{Coeficiente Kappa}
-\item{auc}{Area bajo la curva ROC (AUC)}
-\item{conf_matrix_train}{Matriz de confusion de entrenamiento}
-\item{conf_matrix_test}{Matriz de confusion de prueba}
-\item{conf_matrix_val}{Matriz de confusion de validacion}
-\item{roc_curve}{Objeto de curva ROC}
+Retorna una lista nombrada (por especie) donde cada elemento es otra lista
+con los siguientes componentes:
+
+\itemize{
+\item{\strong{modelo}: Objeto \code{randomForest} entrenado para la especie}
+\item{\strong{importance}: Dataframe con la importancia de cada variable,
+incluyendo MeanDecreaseAccuracy y MeanDecreaseGini}
+\item{\strong{accuracy_train}: Accuracy (exactitud) en datos de entrenamiento
+(proporci\u00f3n de predicciones correctas)}
+\item{\strong{accuracy_test}: Accuracy en datos de prueba}
+\item{\strong{sensitivity}: Sensibilidad (true positive rate) - capacidad
+para detectar presencias correctamente}
+\item{\strong{specificity}: Especificidad (true negative rate) - capacidad
+para detectar ausencias correctamente}
+\item{\strong{kappa}: Coeficiente Kappa de Cohen, ajusta el accuracy por
+acuerdo por azar (valores >0.6 indican buen acuerdo)}
+\item{\strong{auc}: \u00c1rea bajo la curva ROC (AUC), medida de capacidad
+discriminativa (1 = perfecto, 0.5 = aleatorio). Puede ser NA si
+solo hay una clase en los datos de prueba.}
+\item{\strong{conf_matrix_train}: Matriz de confusi\u00f3n para datos de
+entrenamiento (objeto de caret)}
+\item{\strong{conf_matrix_test}: Matriz de confusi\u00f3n para datos de prueba}
+\item{\strong{conf_matrix_val}: Matriz de confusi\u00f3n para datos de
+validaci\u00f3n (10\% de los datos originales)}
+\item{\strong{roc_curve}: Objeto ROC (de pROC) para an\u00e1lisis detallado
+de la curva, o NULL si no se pudo calcular}
+}
+
+Adem\u00e1s, la funci\u00f3n guarda en disco dos archivos por especie:
+\enumerate{
+\item El modelo Random Forest entrenado
+\item Los datos de validaci\u00f3n utilizados
+Los archivos se guardan en la ruta: \verb{C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf/}
+/
+Returns a named list (by species) where each element is another list
+with the following components:
+}
+
+\itemize{
+\item{\strong{modelo}: Trained \code{randomForest} object for the species}
+\item{\strong{importance}: Dataframe with importance of each variable,
+including MeanDecreaseAccuracy and MeanDecreaseGini}
+\item{\strong{accuracy_train}: Accuracy on training data
+(proportion of correct predictions)}
+\item{\strong{accuracy_test}: Accuracy on test data}
+\item{\strong{sensitivity}: Sensitivity (true positive rate) - ability
+to correctly detect presences}
+\item{\strong{specificity}: Specificity (true negative rate) - ability
+to correctly detect absences}
+\item{\strong{kappa}: Cohen's Kappa coefficient, adjusts accuracy for
+chance agreement (values >0.6 indicate good agreement)}
+\item{\strong{auc}: Area under the ROC curve (AUC), measure of
+discriminative ability (1 = perfect, 0.5 = random). May be NA if
+only one class is present in test data.}
+\item{\strong{conf_matrix_train}: Confusion matrix for training data
+(caret object)}
+\item{\strong{conf_matrix_test}: Confusion matrix for test data}
+\item{\strong{conf_matrix_val}: Confusion matrix for validation data
+(10\% of original data)}
+\item{\strong{roc_curve}: ROC object (from pROC) for detailed curve
+analysis, or NULL if not calculable}
+}
+
+Additionally, the function saves two files per species to disk:
+\enumerate{
+\item The trained Random Forest model
+\item The validation data used
+Files are saved to: \verb{C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf/}
+}
 }
 \description{
-Esta funcion realiza modelado de distribucion de especies (SDM) utilizando
-el algoritmo Random Forest para multiples especies simultaneamente.
+Realiza modelado de distribucion de especies (SDM, por sus siglas en ingl\u00e9s)
+utilizando el algoritmo Random Forest para m\u00faltiples especies simult\u00e1neamente.
+La funci\u00f3n implementa un pipeline completo de modelado que incluye partici\u00f3n
+de datos en entrenamiento, prueba y validaci\u00f3n, entrenamiento de modelos y
+evaluaci\u00f3n de m\u00e9tricas para cada especie.
+/
+Performs Species Distribution Modeling (SDM) using the Random Forest algorithm
+for multiple species simultaneously. The function implements a complete modeling
+pipeline including data partitioning into training, testing, and validation sets,
+model training, and metric evaluation for each species.
+}
+\details{
+La funci\u00f3n implementa el siguiente pipeline de modelado para cada especie:
+\enumerate{
+\item \strong{Preprocesamiento y validaci\u00f3n}:
+\itemize{
+\item Filtra especies con suficientes registros (\code{Registros_Minimos} = 10)
+\item Convierte objetos \code{sf} a dataframes si es necesario
+\item Selecciona solo las variables especificadas
+\item Elimina filas con valores NA
+}
+\item \strong{Partici\u00f3n triple de datos}:
+\itemize{
+\item \strong{Validaci\u00f3n}: 10\% de los datos (usando \code{createDataPartition})
+\item \strong{Modelaci\u00f3n}: 90\% restante dividido en:
+\itemize{
+\item Entrenamiento: 70\% de los datos originales (77.8\% de los de modelaci\u00f3n)
+\item Prueba: 30\% de los datos originales (22.2\% de los de modelaci\u00f3n)
+}
+}
+\item \strong{Entrenamiento del modelo}:
+\itemize{
+\item Configura Random Forest con par\u00e1metros espec\u00edficos:
+\itemize{
+\item \code{ntree = 50} (\u00e1rboles)
+\item \code{mtry = 2} (variables por split)
+\item \code{importance = TRUE} (calcula importancia de variables)
+}
+}
+\item \strong{Evaluaci\u00f3n del modelo}:
+\itemize{
+\item Predicciones en datos de entrenamiento, prueba y validaci\u00f3n
+\item C\u00e1lculo de matrices de confusi\u00f3n para los tres conjuntos
+\item C\u00e1lculo de m\u00e9tricas: accuracy, sensibilidad, especificidad, Kappa
+\item Generaci\u00f3n de curva ROC y c\u00e1lculo de AUC (si hay ambas clases en prueba)
+}
+\item \strong{Guardado de resultados}:
+\itemize{
+\item Modelo entrenado guardado como RDS
+\item Datos de validaci\u00f3n guardados como RDS
+\item M\u00e9tricas compiladas en lista de retorno
+}
+}
+
+/
+The function implements the following modeling pipeline for each species:
+\enumerate{
+\item \strong{Preprocessing and validation}:
+\itemize{
+\item Filters species with enough records (\code{Registros_Minimos} = 10)
+\item Converts \code{sf} objects to dataframes if necessary
+\item Selects only specified variables
+\item Removes rows with NA values
+}
+\item \strong{Triple data partitioning}:
+\itemize{
+\item \strong{Validation}: 10\% of data (using \code{createDataPartition})
+\item \strong{Modeling}: Remaining 90\% divided into:
+\itemize{
+\item Training: 70\% of original data (77.8\% of modeling data)
+\item Testing: 30\% of original data (22.2\% of modeling data)
+}
+}
+\item \strong{Model training}:
+\itemize{
+\item Configures Random Forest with specific parameters:
+\itemize{
+\item \code{ntree = 50} (trees)
+\item \code{mtry = 2} (variables per split)
+\item \code{importance = TRUE} (calculates variable importance)
+}
+}
+\item \strong{Model evaluation}:
+\itemize{
+\item Predictions on training, testing, and validation data
+\item Calculation of confusion matrices for all three sets
+\item Calculation of metrics: accuracy, sensitivity, specificity, Kappa
+\item Generation of ROC curve and AUC calculation (if both classes in test data)
+}
+\item \strong{Results saving}:
+\itemize{
+\item Trained model saved as RDS
+\item Validation data saved as RDS
+\item Metrics compiled in return list
+}
+}
 }
 \note{
-Esta funcion utiliza los paquetes: caret para particion de datos y matrices
-de confusion, randomForest para el algoritmo de clasificacion, pROC para curvas
-ROC, y dplyr para manipulacion de datos.
+\itemize{
+\item \strong{Par\u00e1metros fijos}: Los par\u00e1metros de Random Forest est\u00e1n fijos en:
+\itemize{
+\item \code{ntree = 50} (menos que el default de 500 para velocidad)
+\item \code{mtry = 2} (solo 2 variables por split)
+Considere ajustar estos valores seg\u00fan sus necesidades.
 }
+\item \strong{Guardado autom\u00e1tico}: Los modelos y datos se guardan autom\u00e1ticamente
+en la ruta especificada en el c\u00f3digo. Esta ruta es fija y no configurable
+desde los par\u00e1metros.
+\item \strong{Validaci\u00f3n triple}: Se usan tres conjuntos: entrenamiento (63\%),
+prueba (27\%) y validaci\u00f3n (10\%).
+\item \strong{Filtrado estricto}: Especies con menos de 10 registros o con solo
+una clase despu\u00e9s de limpieza son omitidas sin advertencia.
+\item \strong{Reproducibilidad}: Use \code{set.seed()} antes de llamar la funci\u00f3n para
+resultados reproducibles en la partici\u00f3n de datos.
+}
+
+/
+\itemize{
+\item \strong{Fixed parameters}: Random Forest parameters are fixed at:
+\itemize{
+\item \code{ntree = 50} (less than default 500 for speed)
+\item \code{mtry = 2} (only 2 variables per split)
+Consider adjusting these values according to your needs.
+}
+\item \strong{Automatic saving}: Models and data are automatically saved to the
+path specified in the code. This path is fixed and not configurable
+from parameters.
+\item \strong{Triple validation}: Three sets are used: training (63\%),
+testing (27\%), and validation (10\%).
+\item \strong{Strict filtering}: Species with fewer than 10 records or with only
+one class after cleaning are omitted without warning.
+\item \strong{Reproducibility}: Use \code{set.seed()} before calling the function for
+reproducible results in data partitioning.
+}
+}
+\section{Advertencias/Warnings}{
+
+\itemize{
+\item \strong{Ruta fija de guardado}: La ruta de guardado est\u00e1 hardcodeada y puede
+no existir en otros sistemas. Verifique o cree la carpeta antes de usar.
+\item \strong{Par\u00e1metros no optimizados}: Los par\u00e1metros de Random Forest no se
+optimizan autom\u00e1ticamente. Para mejor rendimiento, considere tuning.
+\item \strong{Sin selecci\u00f3n de variables}: Todas las variables especificadas se
+usan sin evaluaci\u00f3n previa de correlaci\u00f3n o importancia.
+\item \strong{AUC puede faltar}: Si los datos de prueba tienen solo una clase,
+no se calcula AUC y el valor ser\u00e1 NA.
+\item \strong{Sin metadatos en retorno}: La lista retornada no incluye metadatos
+como n\u00famero de registros o variables usadas.
+}
+
+/
+\itemize{
+\item \strong{Fixed save path}: The save path is hardcoded and may not exist on
+other systems. Verify or create the folder before using.
+\item \strong{Non-optimized parameters}: Random Forest parameters are not
+automatically optimized. For better performance, consider tuning.
+\item \strong{No variable selection}: All specified variables are used without
+prior evaluation of correlation or importance.
+\item \strong{AUC may be missing}: If test data has only one class,
+AUC is not calculated and value will be NA.
+\item \strong{No metadata in return}: The returned list does not include metadata
+such as number of records or variables used.
+}
+}
+
 \examples{
 \dontrun{
-# Ejemplo de uso
-resultados_modelos <- Rf_SDM_multiples_especies(
-  Data_Df = datos_generales,
-  variables = c("temperatura", "precipitacion", "altitud"),
-  Resultados = lista_presencias_ausencias,
-  Raster_Tif_reproyectado = raster_variables,
+# Ejemplo 1: Uso b\u00e1sico con datos simulados
+# Example 1: Basic usage with simulated data
+
+# Cargar paquetes requeridos
+# Load required packages
+library(randomForest)
+library(caret)
+library(pROC)
+library(dplyr)
+
+# Crear datos de ejemplo para m\u00faltiples especies
+# Create example data for multiple species
+set.seed(123)
+especies <- c("Especie_A", "Especie_B", "Especie_C")
+lista_datos <- list()
+
+for (especie in especies) {
+  n <- 100
+  datos <- data.frame(
+    temperatura = rnorm(n, 20, 5),
+    precipitacion = rnorm(n, 1000, 200),
+    altitud = rnorm(n, 500, 100),
+    humedad = rnorm(n, 70, 10),
+    Presence = sample(c(0, 1), n, replace = TRUE, prob = c(0.7, 0.3)),
+    especie = especie
+  )
+  lista_datos[[especie]] <- datos
+}
+
+# Crear raster de referencia (solo para validaci\u00f3n)
+# Create reference raster (for validation only)
+library(terra)
+raster_ref <- rast(nrows = 10, ncols = 10,
+                   xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+values(raster_ref) <- matrix(1:100, 10, 10)
+names(raster_ref) <- c("temperatura")
+
+# Ejecutar modelado para m\u00faltiples especies
+# Run modeling for multiple species
+resultados_modelos <- Rf_SDM_multiple_species(
+  Data_Df = data.frame(),  # Datos generales (puede estar vac\u00edo para ejemplo)
+  variables = c("temperatura", "precipitacion", "altitud", "humedad"),
+  Resultados_List = lista_datos,
+  Raster_Tif_reproyectado = raster_ref,
   Registros_Minimos = 10
 )
 
-# Acceder a resultados de la primera especie
-resultados_modelos[[1]]$accuracy_test
-resultados_modelos[[1]]$auc
+# Acceder a resultados de una especie espec\u00edfica
+# Access results for a specific species
+resultados_especie_a <- resultados_modelos[["Especie_A"]]
+
+# Ver m\u00e9tricas clave
+# View key metrics
+cat("Accuracy test:", resultados_especie_a$accuracy_test, "\n")
+cat("AUC:", resultados_especie_a$auc, "\n")
+cat("Kappa:", resultados_especie_a$kappa, "\n")
+
+# Ver importancia de variables
+# View variable importance
+print(resultados_especie_a$importance)
+
+# Los modelos tambi\u00e9n est\u00e1n guardados en disco:
+# Models are also saved to disk:
+# C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf/
+}
+
+}
+\seealso{
+\itemize{
+\item \code{\link[randomForest]{randomForest}} para detalles del algoritmo de Random Forest /
+\code{\link[randomForest]{randomForest}} for details on the Random Forest algorithm
+\item \code{\link[caret]{confusionMatrix}} para interpretaci\u00f3n de matrices de confusi\u00f3n /
+\code{\link[caret]{confusionMatrix}} for interpretation of confusion matrices
+\item \code{\link[pROC]{roc}} para an\u00e1lisis detallado de curvas ROC /
+\code{\link[pROC]{roc}} for detailed ROC curve analysis
 }
 }
+\concept{funciones_SDM, funciones_modelado, funciones_aprendizaje_automatico /
+SDM_functions, modeling_functions, machine_learning_functions}
+\keyword{Forest,}
+\keyword{Random}
+\keyword{SDM,}
+\keyword{aprendizaje}
+\keyword{autom\u00e1tico,}
+\keyword{de}
+\keyword{distribuci\u00f3n}
+\keyword{distribution}
+\keyword{especies,}
+\keyword{evaluaci\u00f3n}
+\keyword{evaluation}
+\keyword{learning,}
+\keyword{machine}
+\keyword{model}
+\keyword{modelado}
+\keyword{modeling,}
+\keyword{modelos,}
+\keyword{presence-absence,}
+\keyword{presencia-ausencia,}
+\keyword{species}

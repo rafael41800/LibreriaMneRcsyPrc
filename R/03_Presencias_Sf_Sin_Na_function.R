@@ -2,9 +2,9 @@
 #'
 #' @description
 #' Extrae y procesa datos de presencia de especies desde un objeto `sf`,
-#' combinándolos con valores de variables ambientales de un raster y
-#' eliminando todos los registros incompletos (con valores NA). La función
-#' genera dataframes limpios y listos para análisis de distribución de especies.
+#' combinandolos con valores de variables ambientales de un raster y
+#' eliminando todos los registros incompletos (con valores NA). La funcion
+#' genera dataframes limpios y listos para analisis de distribucion de especies.
 #' /
 #' Extracts and processes species presence data from an `sf` object,
 #' combining them with environmental variable values from a raster and
@@ -12,34 +12,34 @@
 #' clean dataframes ready for species distribution analysis.
 #'
 #' @param Data_Sf Objeto `sf` con datos de presencia de especies. Debe contener
-#'   geometrías puntuales y la columna especificada en `Especie_Valida`.
+#'   geometrias puntuales y la columna especificada en `Especie_Valida`.
 #'   / `sf` object with species presence data. Must contain point geometries
 #'   and the column specified in `Especie_Valida`.
 #'
 #' @param raster_referencia_reproyectado Objeto `SpatRaster` proyectado con
 #'   las variables ambientales. Debe estar en el mismo sistema de coordenadas
-#'   que `Data_Sf` para una extracción correcta.
+#'   que `Data_Sf` para una extraccion correcta.
 #'   / Projected `SpatRaster` object with environmental variables. Must be in
 #'   the same coordinate system as `Data_Sf` for correct extraction.
 #'
 #' @param Especie_Valida Nombre de la columna que contiene los identificadores
-#'   de especie. Puede ser nombre científico, código de especie u otro
-#'   identificador único.
+#'   de especie. Puede ser nombre cientifico, codigo de especie u otro
+#'   identificador unico.
 #'   / Name of the column containing species identifiers. Can be scientific
 #'   name, species code, or other unique identifier.
 #'
-#' @returns
+#' @return
 #' Una lista con los siguientes elementos:
-#' * Un dataframe por cada especie única encontrada en `Data_Sf`
+#' * Un dataframe por cada especie unica encontrada en `Data_Sf`
 #' * Cada dataframe contiene:
-#'   - Coordenadas (`longitud`, `latitud`) extraídas de las geometrías
+#'   - Coordenadas (`longitud`, `latitud`) extraidas de las geometrias
 #'   - Todos los atributos originales del objeto `sf`
-#'   - Valores extraídos de todas las capas del raster (`layer1`, `layer2`, ...)
+#'   - Valores extraidos de todas las capas del raster (`layer1`, `layer2`, ...)
 #'   - Variable `Presencia` con valor constante `1` para todos los registros
 #' * Todos los dataframes han sido limpiados eliminando:
-#'   - Columnas que son completamente NA (sin valores útiles)
+#'   - Columnas que son completamente NA (sin valores utiles)
 #'   - Filas con cualquier valor NA en las columnas restantes
-#' * Los nombres de la lista corresponden a las especies únicas
+#' * Los nombres de la lista corresponden a las especies unicas
 #' /
 #' A list with the following elements:
 #' * One dataframe per unique species found in `Data_Sf`
@@ -54,21 +54,21 @@
 #' * List names correspond to unique species
 #'
 #' @details
-#' La función ejecuta el siguiente flujo de procesamiento para cada especie:
-#' 1. **Filtrado por especie**: Separa los registros para cada especie única
-#' 2. **Extracción de coordenadas**: Convierte geometrías sf a coordenadas X,Y
-#' 3. **Extracción de valores raster**: Obtiene valores de todas las bandas del
-#'    raster en cada ubicación puntual
-#' 4. **Combinación de datos**: Crea un dataframe integrando coordenadas,
+#' La funcion ejecuta el siguiente flujo de procesamiento para cada especie:
+#' 1. **Filtrado por especie**: Separa los registros para cada especie unica
+#' 2. **Extraccion de coordenadas**: Convierte geometrias sf a coordenadas X,Y
+#' 3. **Extraccion de valores raster**: Obtiene valores de todas las bandas del
+#'    raster en cada ubicacion puntual
+#' 4. **Combinacion de datos**: Crea un dataframe integrando coordenadas,
 #'    atributos originales y valores raster
 #' 5. **Limpieza de columnas**: Elimina columnas que contienen solo valores NA
 #' 6. **Limpieza de filas**: Elimina filas que contienen cualquier valor NA
 #'    en las columnas restantes
-#' 7. **Adición de variable respuesta**: Agrega columna `Presencia = 1` para
-#'    modelado de distribución de especies
+#' 7. **Adicion de variable respuesta**: Agrega columna `Presencia = 1` para
+#'    modelado de distribucion de especies
 #'
-#' La limpieza en dos etapas (columnas luego filas) optimiza la retención de
-#' datos útiles y garantiza datasets completos para análisis posteriores.
+#' La limpieza en dos etapas (columnas luego filas) optimiza la retencion de
+#' datos utiles y garantiza datasets completos para analisis posteriores.
 #' /
 #' The function executes the following processing flow for each species:
 #' 1. **Species filtering**: Separates records for each unique species
@@ -87,14 +87,14 @@
 #' data and ensures complete datasets for subsequent analysis.
 #'
 #' @note
-#' * La función requiere que `Data_Sf` y `raster_referencia_reproyectado`
-#'   estén en el mismo sistema de coordenadas de referencia (CRS). Si no lo
-#'   están, los valores extraídos del raster pueden ser incorrectos.
-#' * Las geometrías deben ser puntos (`POINT`). Otros tipos de geometría
+#' * La funcion requiere que `Data_Sf` y `raster_referencia_reproyectado`
+#'   esten en el mismo sistema de coordenadas de referencia (CRS). Si no lo
+#'   estan, los valores extraidos del raster pueden ser incorrectos.
+#' * Las geometrias deben ser puntos (`POINT`). Otros tipos de geometria
 #'   pueden causar errores o resultados inesperados.
 #' * El orden de limpieza es importante: primero se eliminan columnas
-#'   completamente NA, luego filas con NA. Esto maximiza la retención de
-#'   datos válidos.
+#'   completamente NA, luego filas con NA. Esto maximiza la retencion de
+#'   datos validos.
 #' * La columna `Especie_Valida` debe existir en `Data_Sf` y contener
 #'   valores no nulos para todas las observaciones.
 #' * La variable `Presencia` siempre tiene valor 1, ya que todos los
@@ -113,14 +113,14 @@
 #'   confirmed presences.
 #'
 #' @section Advertencias/Warnings:
-#' * Si el raster y el objeto sf tienen diferentes CRS, la función no fallará
-#'   pero los valores extraídos pueden no corresponder a las ubicaciones reales.
-#' * Especies con muy pocos registros pueden resultar en dataframes vacíos
-#'   después de la limpieza de NA.
+#' * Si el raster y el objeto sf tienen diferentes CRS, la funcion no fallara
+#'   pero los valores extraidos pueden no corresponder a las ubicaciones reales.
+#' * Especies con muy pocos registros pueden resultar en dataframes vacios
+#'   despues de la limpieza de NA.
 #' * Columnas con nombres duplicados entre el objeto sf y el raster pueden
 #'   causar conflictos de nombres en el dataframe resultante.
-#' * El proceso de extracción de valores raster puede ser lento con muchos
-#'   puntos (miles o más).
+#' * El proceso de extraccion de valores raster puede ser lento con muchos
+#'   puntos (miles o mas).
 #' /
 #' * If the raster and sf object have different CRS, the function will not fail
 #'   but extracted values may not correspond to actual locations.
@@ -131,14 +131,9 @@
 #' * The raster value extraction process can be slow with many points
 #'   (thousands or more).
 #'
-#' @importFrom terra extract
-#' @importFrom sf st_coordinates st_drop_geometry st_crs
-#' @importFrom dplyr select filter
-#' @importFrom stats complete.cases
-#'
 #' @examples
 #' \dontrun{
-#' # Ejemplo 1: Procesar datos de mamíferos de Oaxaca
+#' # Ejemplo 1: Procesar datos de mamiferos de Oaxaca
 #' # Example 1: Process mammal data from Oaxaca
 #' library(sf)
 #' library(dplyr)
@@ -172,13 +167,13 @@
 #'
 #' # Ver resultados
 #' # Check results
-#' print(paste("Número de especies procesadas:", length(resultados)))
+#' print(paste("Numero de especies procesadas:", length(resultados)))
 #'
 #' if(length(resultados) > 0) {
 #'   # Ver primera especie
 #'   # Check first species
 #'   print(paste("Primera especie:", names(resultados)[1]))
-#'   print(paste("Número de registros:", nrow(resultados[[1]])))
+#'   print(paste("Numero de registros:", nrow(resultados[[1]])))
 #'   print(head(resultados[[1]]))
 #'
 #'   # Resumen de todas las especies
@@ -218,15 +213,31 @@
 #' }
 #'
 #' @seealso
-#' * [terra::extract()] para extraer valores raster en puntos
-#'   / for extracting raster values at points
-#' * [sf::st_coordinates()] para extraer coordenadas de objetos sf
-#'   / for extracting coordinates from sf objects
-#' * [stats::complete.cases()] para identificar filas completas sin NA
-#'   / for identifying complete rows without NA
-#' * [dplyr::filter()] para filtrar dataframes basados en condiciones
-#'   / for filtering dataframes based on conditions
+#'   \itemize{
+#'     \item \code{\link[terra]{extract}} para extraer valores raster en puntos /
+#'           \code{\link[terra]{extract}} for extracting raster values at points
+#'     \item \code{\link[sf]{st_coordinates}} para extraer coordenadas de objetos sf /
+#'           \code{\link[sf]{st_coordinates}} for extracting coordinates from sf objects
+#'     \item \code{\link[stats]{complete.cases}} para identificar filas completas sin NA /
+#'           \code{\link[stats]{complete.cases}} for identifying complete rows without NA
+#'     \item \code{\link[dplyr]{filter}} para filtrar dataframes basados en condiciones /
+#'           \code{\link[dplyr]{filter}} for filtering dataframes based on conditions
+#'   }
 #'
+#' @keywords
+#'   presencias, limpieza de datos, extraccion de valores raster, SDM,
+#'   presencia-ausencia, GIS,
+#'   presences, data cleaning, raster value extraction, SDM,
+#'   presence-absence, GIS
+#'
+#' @family
+#'   funciones_SDM, funciones_limpieza_datos, funciones_espaciales /
+#'   SDM_functions, data_cleaning_functions, spatial_functions
+#'
+#' @importFrom terra extract
+#' @importFrom sf st_coordinates st_drop_geometry
+#' @importFrom dplyr select %>% where
+#' @importFrom stats complete.cases
 #' @export
 Presences_Sf_No_Na_List_Df <- function(Data_Sf, raster_referencia_reproyectado, Especie_Valida = "especievalida"){
   ListaEspecies <- unique(Data_Sf[[Especie_Valida]])

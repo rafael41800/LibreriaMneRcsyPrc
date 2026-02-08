@@ -1,15 +1,16 @@
-#' @title Modelado de distribución de especies con Random Forest / Species Distribution Modeling with Random Forest
+#' @title Modelado de distribucion de especies con Random Forest / Species Distribution Modeling with Random Forest
 #'
 #' @description
-#' Realiza modelado de distribución de especies (SDM, por sus siglas en inglés)
-#' utilizando el algoritmo Random Forest para múltiples especies simultáneamente.
-#' La función implementa un pipeline completo de modelado que incluye partición
-#' de datos, entrenamiento, validación y evaluación de modelos para cada especie.
+#' Realiza modelado de distribucion de especies (SDM, por sus siglas en ingl\u00e9s)
+#' utilizando el algoritmo Random Forest para m\u00faltiples especies simult\u00e1neamente.
+#' La funci\u00f3n implementa un pipeline completo de modelado que incluye partici\u00f3n
+#' de datos en entrenamiento, prueba y validaci\u00f3n, entrenamiento de modelos y
+#' evaluaci\u00f3n de m\u00e9tricas para cada especie.
 #' /
 #' Performs Species Distribution Modeling (SDM) using the Random Forest algorithm
 #' for multiple species simultaneously. The function implements a complete modeling
-#' pipeline including data partitioning, training, validation, and model evaluation
-#' for each species.
+#' pipeline including data partitioning into training, testing, and validation sets,
+#' model training, and metric evaluation for each species.
 #'
 #' @param Data_Df Dataframe con los datos generales del estudio. Aunque no se
 #'   utiliza directamente en los modelos, proporciona contexto y puede ser usado
@@ -21,11 +22,11 @@
 #'   Must contain at least the environmental variables used in modeling.
 #'
 #' @param variables Vector de caracteres con los nombres de las variables
-#'   predictoras que serán utilizadas en los modelos. Estas variables deben:
+#'   predictoras que ser\u00e1n utilizadas en los modelos. Estas variables deben:
 #'   * Estar presentes en todos los dataframes de `Resultados_List`
 #'   * Corresponder a capas en `Raster_Tif_reproyectado`
 #'   * No contener valores NA (deben haber sido limpiados previamente)
-#'   * Ser numéricas para Random Forest
+#'   * Ser num\u00e9ricas para Random Forest
 #'   /
 #'   Character vector with names of predictor variables to be used in models.
 #'   These variables must:
@@ -39,23 +40,21 @@
 #'   * Una fila por registro (presencia o pseudoausencia)
 #'   * Columnas para todas las variables especificadas en `variables`
 #'   * Columna `Presence` con valores `1` (presencia) y `0` (pseudoausencia)
-#'   * Columna `especievalida` o similar identificando la especie
-#'   * Geometría espacial si es objeto sf (será convertida a dataframe)
+#'   * Geometr\u00eda espacial si es objeto sf (ser\u00e1 convertida a dataframe)
 #'   /
 #'   List with presence and pseudoabsence data for each species. Each element
 #'   must be a dataframe with:
 #'   * One row per record (presence or pseudoabsence)
 #'   * Columns for all variables specified in `variables`
 #'   * `Presence` column with values `1` (presence) and `0` (pseudoabsence)
-#'   * `especievalida` or similar column identifying the species
 #'   * Spatial geometry if it's an sf object (will be converted to dataframe)
 #'
 #' @param Raster_Tif_reproyectado Objeto `SpatRaster` de terra con las variables
 #'   ambientales ya reproyectadas al sistema de coordenadas de referencia. Se
 #'   utiliza para:
 #'   * Validar que las variables en los datos correspondan a capas del raster
-#'   * Posiblemente para predicciones espaciales futuras (aunque no en esta función)
-#'   * Referencia de resolución y extensión espacial
+#'   * Posiblemente para predicciones espaciales futuras (aunque no en esta funci\u00f3n)
+#'   * Referencia de resoluci\u00f3n y extensi\u00f3n espacial
 #'   /
 #'   `SpatRaster` object from terra with environmental variables already
 #'   reprojected to the reference coordinate system. It is used for:
@@ -63,17 +62,16 @@
 #'   * Possibly for future spatial predictions (though not in this function)
 #'   * Reference of spatial resolution and extent
 #'
-#' @param Registros_Minimos Número mínimo de registros que debe tener una especie
+#' @param Registros_Minimos N\u00famero m\u00ednimo de registros que debe tener una especie
 #'   para ser modelada. Incluye tanto presencias como pseudoausencias.
-#'   Por defecto es 5. Especies con menos registros serán omitidas con una
-#'   advertencia. Este umbral asegura modelos estadísticamente robustos.
+#'   Por defecto es 10. Especies con menos registros ser\u00e1n omitidas.
+#'   Este umbral asegura modelos estad\u00edsticamente robustos.
 #'   /
 #'   Minimum number of records a species must have to be modeled. Includes
-#'   both presences and pseudoabsences. Default is 5. Species with fewer
-#'   records will be omitted with a warning. This threshold ensures
-#'   statistically robust models.
+#'   both presences and pseudoabsences. Default is 10. Species with fewer
+#'   records will be omitted. This threshold ensures statistically robust models.
 #'
-#' @returns
+#' @return
 #' Retorna una lista nombrada (por especie) donde cada elemento es otra lista
 #' con los siguientes componentes:
 #'
@@ -82,7 +80,7 @@
 #'   \item{\strong{importance}: Dataframe con la importancia de cada variable,
 #'         incluyendo MeanDecreaseAccuracy y MeanDecreaseGini}
 #'   \item{\strong{accuracy_train}: Accuracy (exactitud) en datos de entrenamiento
-#'         (proporción de predicciones correctas)}
+#'         (proporci\u00f3n de predicciones correctas)}
 #'   \item{\strong{accuracy_test}: Accuracy en datos de prueba}
 #'   \item{\strong{sensitivity}: Sensibilidad (true positive rate) - capacidad
 #'         para detectar presencias correctamente}
@@ -90,24 +88,22 @@
 #'         para detectar ausencias correctamente}
 #'   \item{\strong{kappa}: Coeficiente Kappa de Cohen, ajusta el accuracy por
 #'         acuerdo por azar (valores >0.6 indican buen acuerdo)}
-#'   \item{\strong{auc}: Area bajo la curva ROC (AUC), medida de capacidad
-#'         discriminativa (1 = perfecto, 0.5 = aleatorio)}
-#'   \item{\strong{conf_matrix_train}: Matriz de confusión para datos de
-#'         entrenamiento}
-#'   \item{\strong{conf_matrix_test}: Matriz de confusión para datos de prueba}
-#'   \item{\strong{conf_matrix_val}: Matriz de confusión para datos de
-#'         validación (si aplica)}
-#'   \item{\strong{roc_curve}: Objeto ROC para análisis detallado de la curva}
-#'   \item{\strong{n_records}: Número total de registros utilizados}
-#'   \item{\strong{n_presences}: Número de presencias en el conjunto de datos}
-#'   \item{\strong{n_pseudoabsences}: Número de pseudoausencias en el conjunto}
-#'   \item{\strong{train_test_split}: Proporción de datos en entrenamiento vs prueba}
-#'   \item{\strong{variables_used}: Variables finalmente utilizadas en el modelo
-#'         (puede diferir de `variables` si hay problemas)}
+#'   \item{\strong{auc}: \u00c1rea bajo la curva ROC (AUC), medida de capacidad
+#'         discriminativa (1 = perfecto, 0.5 = aleatorio). Puede ser NA si
+#'         solo hay una clase en los datos de prueba.}
+#'   \item{\strong{conf_matrix_train}: Matriz de confusi\u00f3n para datos de
+#'         entrenamiento (objeto de caret)}
+#'   \item{\strong{conf_matrix_test}: Matriz de confusi\u00f3n para datos de prueba}
+#'   \item{\strong{conf_matrix_val}: Matriz de confusi\u00f3n para datos de
+#'         validaci\u00f3n (10% de los datos originales)}
+#'   \item{\strong{roc_curve}: Objeto ROC (de pROC) para an\u00e1lisis detallado
+#'         de la curva, o NULL si no se pudo calcular}
 #' }
 #'
-#' La lista es invisible (no se imprime automáticamente) para facilitar su
-#' asignación a un objeto y posterior análisis.
+#' Adem\u00e1s, la funci\u00f3n guarda en disco dos archivos por especie:
+#' 1. El modelo Random Forest entrenado
+#' 2. Los datos de validaci\u00f3n utilizados
+#' Los archivos se guardan en la ruta: `C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf/`
 #' /
 #' Returns a named list (by species) where each element is another list
 #' with the following components:
@@ -126,162 +122,143 @@
 #'   \item{\strong{kappa}: Cohen's Kappa coefficient, adjusts accuracy for
 #'         chance agreement (values >0.6 indicate good agreement)}
 #'   \item{\strong{auc}: Area under the ROC curve (AUC), measure of
-#'         discriminative ability (1 = perfect, 0.5 = random)}
-#'   \item{\strong{conf_matrix_train}: Confusion matrix for training data}
+#'         discriminative ability (1 = perfect, 0.5 = random). May be NA if
+#'         only one class is present in test data.}
+#'   \item{\strong{conf_matrix_train}: Confusion matrix for training data
+#'         (caret object)}
 #'   \item{\strong{conf_matrix_test}: Confusion matrix for test data}
 #'   \item{\strong{conf_matrix_val}: Confusion matrix for validation data
-#'         (if applicable)}
-#'   \item{\strong{roc_curve}: ROC object for detailed curve analysis}
-#'   \item{\strong{n_records}: Total number of records used}
-#'   \item{\strong{n_presences}: Number of presences in the dataset}
-#'   \item{\strong{n_pseudoabsences}: Number of pseudoabsences in the dataset}
-#'   \item{\strong{train_test_split}: Proportion of data in training vs test}
-#'   \item{\strong{variables_used}: Variables finally used in the model
-#'         (may differ from `variables` if there are issues)}
+#'         (10% of original data)}
+#'   \item{\strong{roc_curve}: ROC object (from pROC) for detailed curve
+#'         analysis, or NULL if not calculable}
 #' }
 #'
-#' The list is invisible (not automatically printed) to facilitate assignment
-#' to an object and subsequent analysis.
+#' Additionally, the function saves two files per species to disk:
+#' 1. The trained Random Forest model
+#' 2. The validation data used
+#' Files are saved to: `C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf/`
 #'
 #' @details
-#' La función implementa el siguiente pipeline de modelado para cada especie:
+#' La funci\u00f3n implementa el siguiente pipeline de modelado para cada especie:
 #'
-#' 1. **Preprocesamiento y validación**:
-#'    - Filtra especies con suficientes registros (`Registros_Minimos`)
+#' 1. **Preprocesamiento y validaci\u00f3n**:
+#'    - Filtra especies con suficientes registros (`Registros_Minimos` = 10)
 #'    - Convierte objetos `sf` a dataframes si es necesario
-#'    - Verifica que todas las variables requeridas estén presentes
-#'    - Elimina registros duplicados y verifica balance de clases
+#'    - Selecciona solo las variables especificadas
+#'    - Elimina filas con valores NA
 #'
-#' 2. **Partición de datos**:
-#'    - Divide datos en conjuntos de entrenamiento (70%) y prueba (30%)
-#'    - Mantiene proporción original de presencias/ausencias en cada conjunto
-#'    - Utiliza `caret::createDataPartition()` para partición estratificada
+#' 2. **Partici\u00f3n triple de datos**:
+#'    - **Validaci\u00f3n**: 10% de los datos (usando `createDataPartition`)
+#'    - **Modelaci\u00f3n**: 90% restante dividido en:
+#'      - Entrenamiento: 70% de los datos originales (77.8% de los de modelaci\u00f3n)
+#'      - Prueba: 30% de los datos originales (22.2% de los de modelaci\u00f3n)
 #'
 #' 3. **Entrenamiento del modelo**:
-#'    - Configura Random Forest con parámetros por defecto optimizados
-#'    - Entrena modelo con datos de entrenamiento
-#'    - Calcula importancia de variables durante el entrenamiento
+#'    - Configura Random Forest con par\u00e1metros espec\u00edficos:
+#'      - `ntree = 50` (\u00e1rboles)
+#'      - `mtry = 2` (variables por split)
+#'      - `importance = TRUE` (calcula importancia de variables)
 #'
-#' 4. **Evaluación del modelo**:
-#'    - Predicciones en datos de entrenamiento y prueba
-#'    - Cálculo de matrices de confusión para múltiples conjuntos
-#'    - Cálculo de métricas: accuracy, sensibilidad, especificidad, Kappa
-#'    - Generación de curva ROC y cálculo de AUC
+#' 4. **Evaluaci\u00f3n del modelo**:
+#'    - Predicciones en datos de entrenamiento, prueba y validaci\u00f3n
+#'    - C\u00e1lculo de matrices de confusi\u00f3n para los tres conjuntos
+#'    - C\u00e1lculo de m\u00e9tricas: accuracy, sensibilidad, especificidad, Kappa
+#'    - Generaci\u00f3n de curva ROC y c\u00e1lculo de AUC (si hay ambas clases en prueba)
 #'
-#' 5. **Organización de resultados**:
-#'    - Compila todas las métricas en estructura lista
-#'    - Agrega metadatos sobre el proceso de modelado
-#'    - Organiza resultados por especie para fácil acceso
-#'
-#' 6. **Validación cruzada implícita**:
-#'    - Random Forest incluye validación out-of-bag (OOB) internamente
-#'    - La partición entrenamiento/prueba proporciona validación externa
+#' 5. **Guardado de resultados**:
+#'    - Modelo entrenado guardado como RDS
+#'    - Datos de validaci\u00f3n guardados como RDS
+#'    - M\u00e9tricas compiladas en lista de retorno
 #'
 #' /
 #' The function implements the following modeling pipeline for each species:
 #'
 #' 1. **Preprocessing and validation**:
-#'    - Filters species with enough records (`Registros_Minimos`)
+#'    - Filters species with enough records (`Registros_Minimos` = 10)
 #'    - Converts `sf` objects to dataframes if necessary
-#'    - Verifies all required variables are present
-#'    - Removes duplicate records and checks class balance
+#'    - Selects only specified variables
+#'    - Removes rows with NA values
 #'
-#' 2. **Data partitioning**:
-#'    - Splits data into training (70%) and test (30%) sets
-#'    - Maintains original presence/absence proportion in each set
-#'    - Uses `caret::createDataPartition()` for stratified partitioning
+#' 2. **Triple data partitioning**:
+#'    - **Validation**: 10% of data (using `createDataPartition`)
+#'    - **Modeling**: Remaining 90% divided into:
+#'      - Training: 70% of original data (77.8% of modeling data)
+#'      - Testing: 30% of original data (22.2% of modeling data)
 #'
 #' 3. **Model training**:
-#'    - Configures Random Forest with optimized default parameters
-#'    - Trains model with training data
-#'    - Calculates variable importance during training
+#'    - Configures Random Forest with specific parameters:
+#'      - `ntree = 50` (trees)
+#'      - `mtry = 2` (variables per split)
+#'      - `importance = TRUE` (calculates variable importance)
 #'
 #' 4. **Model evaluation**:
-#'    - Predictions on training and test data
-#'    - Calculation of confusion matrices for multiple sets
+#'    - Predictions on training, testing, and validation data
+#'    - Calculation of confusion matrices for all three sets
 #'    - Calculation of metrics: accuracy, sensitivity, specificity, Kappa
-#'    - Generation of ROC curve and AUC calculation
+#'    - Generation of ROC curve and AUC calculation (if both classes in test data)
 #'
-#' 5. **Results organization**:
-#'    - Compiles all metrics into list structure
-#'    - Adds metadata about modeling process
-#'    - Organizes results by species for easy access
-#'
-#' 6. **Implicit cross-validation**:
-#'    - Random Forest includes out-of-bag (OOB) validation internally
-#'    - Train/test split provides external validation
+#' 5. **Results saving**:
+#'    - Trained model saved as RDS
+#'    - Validation data saved as RDS
+#'    - Metrics compiled in return list
 #'
 #' @note
-#' * **Paquetes requeridos**: Esta función utiliza múltiples paquetes:
-#'   - `caret` para partición de datos y matrices de confusión
-#'   - `randomForest` para el algoritmo de clasificación
-#'   - `pROC` para curvas ROC y cálculo de AUC
-#'   - `dplyr` para manipulación de datos
-#'   - `terra` para manejo de raster (solo validación)
-#' * **Balance de clases**: Random Forest maneja bien desbalance de clases,
-#'   pero proporciones extremas pueden afectar métricas como sensibilidad.
-#' * **Parámetros de Random Forest**: Se usan valores por defecto (500 árboles,
-#'   sqrt(p) variables por split). Para ajustes avanzados, entrenar modelos
-#'   individualmente fuera de esta función.
-#' * **Reproducibilidad**: Use `set.seed()` antes de llamar la función para
-#'   resultados reproducibles en partición de datos y Random Forest.
-#' * **Tiempo de ejecución**: Para muchas especies o muchos registros, el
-#'   proceso puede ser computacionalmente intensivo.
-#' * **Validación espacial**: Esta función no realiza validación espacial
-#'   explícita (block CV, environmental CV). Considere esto en interpretación.
+#' * **Par\u00e1metros fijos**: Los par\u00e1metros de Random Forest est\u00e1n fijos en:
+#'   - `ntree = 50` (menos que el default de 500 para velocidad)
+#'   - `mtry = 2` (solo 2 variables por split)
+#'   Considere ajustar estos valores seg\u00fan sus necesidades.
+#' * **Guardado autom\u00e1tico**: Los modelos y datos se guardan autom\u00e1ticamente
+#'   en la ruta especificada en el c\u00f3digo. Esta ruta es fija y no configurable
+#'   desde los par\u00e1metros.
+#' * **Validaci\u00f3n triple**: Se usan tres conjuntos: entrenamiento (63%),
+#'   prueba (27%) y validaci\u00f3n (10%).
+#' * **Filtrado estricto**: Especies con menos de 10 registros o con solo
+#'   una clase despu\u00e9s de limpieza son omitidas sin advertencia.
+#' * **Reproducibilidad**: Use `set.seed()` antes de llamar la funci\u00f3n para
+#'   resultados reproducibles en la partici\u00f3n de datos.
 #'
 #' /
-#' * **Required packages**: This function uses multiple packages:
-#'   - `caret` for data partitioning and confusion matrices
-#'   - `randomForest` for classification algorithm
-#'   - `pROC` for ROC curves and AUC calculation
-#'   - `dplyr` for data manipulation
-#'   - `terra` for raster handling (validation only)
-#' * **Class balance**: Random Forest handles class imbalance well,
-#'   but extreme proportions may affect metrics like sensitivity.
-#' * **Random Forest parameters**: Default values are used (500 trees,
-#'   sqrt(p) variables per split). For advanced tuning, train models
-#'   individually outside this function.
+#' * **Fixed parameters**: Random Forest parameters are fixed at:
+#'   - `ntree = 50` (less than default 500 for speed)
+#'   - `mtry = 2` (only 2 variables per split)
+#'   Consider adjusting these values according to your needs.
+#' * **Automatic saving**: Models and data are automatically saved to the
+#'   path specified in the code. This path is fixed and not configurable
+#'   from parameters.
+#' * **Triple validation**: Three sets are used: training (63%),
+#'   testing (27%), and validation (10%).
+#' * **Strict filtering**: Species with fewer than 10 records or with only
+#'   one class after cleaning are omitted without warning.
 #' * **Reproducibility**: Use `set.seed()` before calling the function for
-#'   reproducible results in data partitioning and Random Forest.
-#' * **Execution time**: For many species or many records, the process
-#'   can be computationally intensive.
-#' * **Spatial validation**: This function does not perform explicit spatial
-#'   validation (block CV, environmental CV). Consider this in interpretation.
+#'   reproducible results in data partitioning.
 #'
 #' @section Advertencias/Warnings:
-#' * **Registros insuficientes**: Especies con menos de `Registros_Minimos`
-#'   registros serán omitidas con advertencia. Considere ajustar este umbral
-#'   para estudios con datos limitados.
-#' * **Variables faltantes**: Si alguna variable de `variables` no está
-#'   presente en todos los dataframes de especies, la función intentará
-#'   continuar con las variables disponibles, pero emitirá advertencia.
-#' * **Predicciones perfectas**: En casos raros con datos muy separables,
-#'   Random Forest puede producir accuracy perfecto (1.0), lo que puede
-#'   indicar sobreajuste o datos artificialmente separables.
-#' * **AUC no informativo**: AUC puede no ser informativo con desbalance
-#'   extremo de clases o cuando el modelo tiene accuracy muy bajo.
-#' * **Uso de memoria**: Modelar muchas especies simultáneamente puede
-#'   consumir mucha memoria, especialmente con muchos registros por especie.
+#' * **Ruta fija de guardado**: La ruta de guardado est\u00e1 hardcodeada y puede
+#'   no existir en otros sistemas. Verifique o cree la carpeta antes de usar.
+#' * **Par\u00e1metros no optimizados**: Los par\u00e1metros de Random Forest no se
+#'   optimizan autom\u00e1ticamente. Para mejor rendimiento, considere tuning.
+#' * **Sin selecci\u00f3n de variables**: Todas las variables especificadas se
+#'   usan sin evaluaci\u00f3n previa de correlaci\u00f3n o importancia.
+#' * **AUC puede faltar**: Si los datos de prueba tienen solo una clase,
+#'   no se calcula AUC y el valor ser\u00e1 NA.
+#' * **Sin metadatos en retorno**: La lista retornada no incluye metadatos
+#'   como n\u00famero de registros o variables usadas.
 #'
 #' /
-#' * **Insufficient records**: Species with fewer than `Registros_Minimos`
-#'   records will be omitted with warning. Consider adjusting this threshold
-#'   for studies with limited data.
-#' * **Missing variables**: If any variable from `variables` is not present
-#'   in all species dataframes, the function will attempt to continue with
-#'   available variables but will issue a warning.
-#' * **Perfect predictions**: In rare cases with very separable data,
-#'   Random Forest may produce perfect accuracy (1.0), which may indicate
-#'   overfitting or artificially separable data.
-#' * **Uninformative AUC**: AUC may not be informative with extreme class
-#'   imbalance or when the model has very low accuracy.
-#' * **Memory usage**: Modeling many species simultaneously can consume
-#'   significant memory, especially with many records per species.
+#' * **Fixed save path**: The save path is hardcoded and may not exist on
+#'   other systems. Verify or create the folder before using.
+#' * **Non-optimized parameters**: Random Forest parameters are not
+#'   automatically optimized. For better performance, consider tuning.
+#' * **No variable selection**: All specified variables are used without
+#'   prior evaluation of correlation or importance.
+#' * **AUC may be missing**: If test data has only one class,
+#'   AUC is not calculated and value will be NA.
+#' * **No metadata in return**: The returned list does not include metadata
+#'   such as number of records or variables used.
 #'
 #' @examples
 #' \dontrun{
-#' # Ejemplo 1: Uso básico con datos simulados
+#' # Ejemplo 1: Uso b\u00e1sico con datos simulados
 #' # Example 1: Basic usage with simulated data
 #'
 #' # Cargar paquetes requeridos
@@ -291,7 +268,7 @@
 #' library(pROC)
 #' library(dplyr)
 #'
-#' # Crear datos de ejemplo para múltiples especies
+#' # Crear datos de ejemplo para m\u00faltiples especies
 #' # Create example data for multiple species
 #' set.seed(123)
 #' especies <- c("Especie_A", "Especie_B", "Especie_C")
@@ -310,7 +287,7 @@
 #'   lista_datos[[especie]] <- datos
 #' }
 #'
-#' # Crear raster de referencia (solo para validación)
+#' # Crear raster de referencia (solo para validaci\u00f3n)
 #' # Create reference raster (for validation only)
 #' library(terra)
 #' raster_ref <- rast(nrows = 10, ncols = 10,
@@ -318,21 +295,21 @@
 #' values(raster_ref) <- matrix(1:100, 10, 10)
 #' names(raster_ref) <- c("temperatura")
 #'
-#' # Ejecutar modelado para múltiples especies
+#' # Ejecutar modelado para m\u00faltiples especies
 #' # Run modeling for multiple species
-#' resultados_modelos <- Rf_SDM_multiples_especies(
-#'   Data_Df = data.frame(),  # Datos generales (puede estar vacío para ejemplo)
+#' resultados_modelos <- Rf_SDM_multiple_species(
+#'   Data_Df = data.frame(),  # Datos generales (puede estar vac\u00edo para ejemplo)
 #'   variables = c("temperatura", "precipitacion", "altitud", "humedad"),
 #'   Resultados_List = lista_datos,
 #'   Raster_Tif_reproyectado = raster_ref,
-#'   Registros_Minimos = 5
+#'   Registros_Minimos = 10
 #' )
 #'
-#' # Acceder a resultados de una especie específica
+#' # Acceder a resultados de una especie espec\u00edfica
 #' # Access results for a specific species
 #' resultados_especie_a <- resultados_modelos[["Especie_A"]]
 #'
-#' # Ver métricas clave
+#' # Ver m\u00e9tricas clave
 #' # View key metrics
 #' cat("Accuracy test:", resultados_especie_a$accuracy_test, "\n")
 #' cat("AUC:", resultados_especie_a$auc, "\n")
@@ -342,53 +319,36 @@
 #' # View variable importance
 #' print(resultados_especie_a$importance)
 #'
-#' # Ejemplo 2: Con datos reales y ajuste de parámetros
-#' # Example 2: With real data and parameter adjustment
-#'
-#' # Después de procesar presencias y pseudoausencias
-#' # After processing presences and pseudoabsences
-#' resultados_modelos_reales <- Rf_SDM_multiples_especies(
-#'   Data_Df = datos_ambientales_completos,
-#'   variables = nombres_variables_ambientales,
-#'   Resultados_List = lista_presencias_ausencias_procesadas,
-#'   Raster_Tif_reproyectado = raster_variables_proyectado,
-#'   Registros_Minimos = 10  # Aumentar umbral para modelos más robustos
-#' )
-#'
-#' # Análisis comparativo entre especies
-#' # Comparative analysis between species
-#' comparativa <- data.frame(
-#'   Especie = names(resultados_modelos_reales),
-#'   AUC = sapply(resultados_modelos_reales, function(x) x$auc),
-#'   Accuracy_Test = sapply(resultados_modelos_reales, function(x) x$accuracy_test),
-#'   Kappa = sapply(resultados_modelos_reales, function(x) x$kappa)
-#' )
-#'
-#' print(comparativa[order(-comparativa$AUC), ])
-#'
-#' # Guardar modelos para uso futuro
-#' # Save models for future use
-#' saveRDS(resultados_modelos_reales, "modelos_randomforest_sdm.rds")
+#' # Los modelos tambi\u00e9n est\u00e1n guardados en disco:
+#' # Models are also saved to disk:
+#' # C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf/
 #' }
 #'
-#' @importFrom caret createDataPartition confusionMatrix
-#' @importFrom randomForest randomForest
-#' @importFrom pROC roc auc
-#' @importFrom dplyr select filter %>% bind_rows
-#' @importFrom stats predict
-#'
 #' @seealso
-#' * [randomForest::randomForest()] para detalles del algoritmo de Random Forest
-#'   / for details on the Random Forest algorithm
-#' * [caret::confusionMatrix()] para interpretación de matrices de confusión
-#'   / for interpretation of confusion matrices
-#' * [pROC::roc()] para análisis detallado de curvas ROC
-#'   / for detailed ROC curve analysis
-#' * [Presencias_Sf_Sin_Na()] para preparar datos de entrada
-#'   / to prepare input data
-#' * [Simular_Pseudoausencias_Sin_NA()] para generar pseudoausencias balanceadas
-#'   / to generate balanced pseudoabsences
+#'   \itemize{
+#'     \item \code{\link[randomForest]{randomForest}} para detalles del algoritmo de Random Forest /
+#'           \code{\link[randomForest]{randomForest}} for details on the Random Forest algorithm
+#'     \item \code{\link[caret]{confusionMatrix}} para interpretaci\u00f3n de matrices de confusi\u00f3n /
+#'           \code{\link[caret]{confusionMatrix}} for interpretation of confusion matrices
+#'     \item \code{\link[pROC]{roc}} para an\u00e1lisis detallado de curvas ROC /
+#'           \code{\link[pROC]{roc}} for detailed ROC curve analysis
+#'   }
 #'
+#' @keywords
+#'   SDM, Random Forest, modelado de distribuci\u00f3n de especies, aprendizaje autom\u00e1tico,
+#'   presencia-ausencia, evaluaci\u00f3n de modelos,
+#'   SDM, Random Forest, species distribution modeling, machine learning,
+#'   presence-absence, model evaluation
+#'
+#' @family
+#'   funciones_SDM, funciones_modelado, funciones_aprendizaje_automatico /
+#'   SDM_functions, modeling_functions, machine_learning_functions
+#'
+#' @importFrom randomForest randomForest
+#' @importFrom caret createDataPartition confusionMatrix
+#' @importFrom pROC roc auc
+#' @importFrom dplyr select %>% all_of
+#' @importFrom stats complete.cases predict
 #' @export
 Rf_SDM_multiple_species <- function(Data_Df, variables, Resultados_List, Raster_Tif_reproyectado, Registros_Minimos = 10){
   modelos_especies <- list()
@@ -449,8 +409,8 @@ Rf_SDM_multiple_species <- function(Data_Df, variables, Resultados_List, Raster_
         roc_curve = roc_curve
       )
       modelos_especies[[m]] <- modelo_info
-      ruta_almacenamiento <- "C:/Users/Admin/Documents/RafaelChavez/Carpeta_inicial_tesis/codigo_R_tesis/Resultados_Rf"
-      # modelo y datos de validación en disco
+      ruta_almacenamiento <- file.path(getwd(), "ResultadosModelaci\u00f3nRf_Todo")
+      # modelo y datos de validaci\u00f3n en disco
       saveRDS(RF_model, paste0(ruta_almacenamiento, "modelo_randomforest_", m, ".rds"))
       saveRDS(Datos_Para_Validacion, paste0(ruta_almacenamiento, "datos_validacion_final_", m, ".rds"))
     }
