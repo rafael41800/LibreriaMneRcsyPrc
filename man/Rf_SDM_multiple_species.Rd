@@ -2,198 +2,226 @@
 % Please edit documentation in R/05_Rf_Modelado_Distribucion_Especies_Function.R
 \name{Rf_SDM_multiple_species}
 \alias{Rf_SDM_multiple_species}
-\title{Modelado de Distribucion de Especies con Random Forest Multi-Especies / Species Distribution Modeling with Random Forest for Multiple Species}
+\title{Modelado de Distribución de Especies Múltiples con Random Forest
+/ Multiple Species Distribution Modeling with Random Forest}
 \usage{
-Rf_SDM_multiple_species(Resultados_List, variables, Registros_Minimos = 10)
+Rf_SDM_multiple_species(
+  Resultados_List,
+  Variables,
+  Registros_Minimos = 10,
+  Stack_Raster_Reproyectado = NULL,
+  Ruta_Almacenamiento = NULL,
+  N_Tree = 100,
+  Set_Seed = NULL,
+  Cross_V_Folds = 5,
+  Tune_M_Try = TRUE
+)
 }
 \arguments{
-\item{Resultados_List}{Lista nombrada donde cada elemento corresponde a una especie.
-Cada elemento debe ser un data.frame con datos de presencia/ausencia, incluyendo
-una columna "Presence" (factor o numerica) y las variables predictoras.
-/ Named list where each element corresponds to a species.
-Each element must be a data.frame with presence/absence data, including
-a "Presence" column (factor or numeric) and predictor variables.}
+\item{Resultados_List}{Lista nombrada donde cada elemento corresponde a una
+especie y contiene un data.frame con columnas de presencia/ausencia y
+variables predictoras. Debe incluir la columna Presence (factor) y las
+variables especificadas en Variables.
+/ Named list where each element corresponds to a species and contains a
+data.frame with presence/absence columns and predictor variables. Must
+include the Presence column (factor) and variables specified in Variables.}
 
-\item{variables}{Vector de caracteres con los nombres de las variables predictoras
-a incluir en el modelo. Deben corresponder a columnas en los data.frames.
-/ Character vector with names of predictor variables
-to include in the model. Must correspond to columns in the data.frames.}
+\item{Variables}{Vector de caracteres con los nombres de las variables
+predictoras a utilizar en el modelado. Estas columnas deben estar presentes
+en los data.frames de Resultados_List.
+/ Character vector with names of predictor variables to use in modeling.
+These columns must be present in the data.frames of Resultados_List.}
 
-\item{Registros_Minimos}{Numero minimo de registros requeridos para modelar una especie.
-Especies con menos registros son omitidas. Por defecto es 10.
-/ Minimum number of records required to model a species.
-Species with fewer records are omitted. Default is 10.}
+\item{Registros_Minimos}{Número mínimo de registros (presencia + ausencia)
+requeridos para modelar una especie. Por defecto es 10.
+/ Minimum number of records (presence + absence) required to model a species.
+Default is 10.}
+
+\item{Stack_Raster_Reproyectado}{Objeto raster stack (de terra o raster)
+con las variables predictoras proyectadas espacialmente. Si se proporciona,
+se generan mapas de predicción de probabilidad.
+/ Raster stack object (from terra or raster) with spatially projected
+predictor variables. If provided, probability prediction maps are generated.}
+
+\item{Ruta_Almacenamiento}{Ruta de directorio donde guardar los resultados
+(modelos, datos de validación, gráficos, raster). Si es NULL, no se guardan
+archivos.
+/ Directory path to save results (models, validation data, plots, raster).
+If NULL, no files are saved.}
+
+\item{N_Tree}{Número de árboles en cada modelo Random Forest. Por defecto 100.
+/ Number of trees in each Random Forest model. Default 100.}
+
+\item{Set_Seed}{Semilla para reproducibilidad. Si es NULL, no se fija semilla.
+/ Seed for reproducibility. If NULL, no seed is set.}
+
+\item{Cross_V_Folds}{Número de folds para validación cruzada. Si es 1 o menos,
+no se realiza validación cruzada. Por defecto 5.
+/ Number of folds for cross-validation. If 1 or less, no cross-validation is
+performed. Default 5.}
+
+\item{Tune_M_Try}{Lógico. Si TRUE, se ajusta automáticamente el parámetro
+mtry (número de variables muestreadas en cada split). Si FALSE, se usa mtry=2.
+/ Logical. If TRUE, automatically tunes the mtry parameter (number of variables
+sampled at each split). If FALSE, uses mtry=2.}
 }
 \value{
-Retorna una lista nombrada (por especie) donde cada elemento contiene:
+Una lista nombrada (por especie) con los siguientes componentes para cada
+modelo exitoso:
 \itemize{
-\item modelo: Objeto Random Forest entrenado
-\item importance: Data.frame con importancia de variables
-\item accuracy_train: Exactitud en datos de entrenamiento
-\item accuracy_test: Exactitud en datos de prueba
-\item sensitivity: Sensibilidad en datos de prueba
-\item specificity: Especificidad en datos de prueba
-\item kappa: Estadistico Kappa en datos de prueba
-\item auc: Area bajo la curva ROC (si aplicable)
-\item conf_matrix_train: Matriz de confusion entrenamiento
-\item conf_matrix_test: Matriz de confusion prueba
-\item conf_matrix_val: Matriz de confusion validacion
-\item roc_curve: Objeto curva ROC (si aplicable)
-Adicionalmente, guarda en disco los modelos (.rds) y datos de validacion.
+\item modelo: Objeto Random Forest entrenado.
+\item importance: Importancia de variables.
+\item cv_summary: Resumen de métricas de validación cruzada (si aplica).
+\item accuracy_train, accuracy_test: Precisión en entrenamiento y prueba.
+\item sensitivity, specificity: Sensibilidad y especificidad.
+\item precision, recall, f1_score: Métricas de clasificación.
+\item kappa: Coeficiente Kappa.
+\item auc: Área bajo la curva ROC (si aplica).
+\item conf_matrix_train, conf_matrix_test, conf_matrix_val: Matrices de confusión.
+\item roc_curve: Objeto curva ROC (si aplica).
+\item mtry_used, ntree_used: Parámetros usados.
+\item raster_prediction: Raster de predicción (si se proporcionó stack).
+}
 /
-Returns a named list (by species) where each element contains:
-\item modelo: Trained Random Forest object
-\item importance: Data.frame with variable importance
-\item accuracy_train: Accuracy on training data
-\item accuracy_test: Accuracy on test data
-\item sensitivity: Sensitivity on test data
-\item specificity: Specificity on test data
-\item kappa: Kappa statistic on test data
-\item auc: Area under ROC curve (if applicable)
-\item conf_matrix_train: Confusion matrix training
-\item conf_matrix_test: Confusion matrix test
-\item conf_matrix_val: Confusion matrix validation
-\item roc_curve: ROC curve object (if applicable)
-Additionally, saves models (.rds) and validation data to disk.
+A named list (by species) with the following components for each successful model:
+\itemize{
+\item modelo: Trained Random Forest object.
+\item importance: Variable importance.
+\item cv_summary: Cross-validation metrics summary (if applicable).
+\item accuracy_train, accuracy_test: Accuracy on training and test sets.
+\item sensitivity, specificity: Sensitivity and specificity.
+\item precision, recall, f1_score: Classification metrics.
+\item kappa: Kappa coefficient.
+\item auc: Area under ROC curve (if applicable).
+\item conf_matrix_train, conf_matrix_test, conf_matrix_val: Confusion matrices.
+\item roc_curve: ROC curve object (if applicable).
+\item mtry_used, ntree_used: Parameters used.
+\item raster_prediction: Prediction raster (if stack provided).
 }
 }
 \description{
-Entrena modelos Random Forest para modelado de distribucion de especies (SDM) para
-multiples especies en paralelo. Realiza particion de datos, evaluacion del modelo
-y almacenamiento de resultados. La funcion incluye validacion cruzada y calculo
-de metricas de desempeno.
+Ejecuta modelos Random Forest para múltiples especies a partir de datos de
+presencia/ausencia, incluyendo validación cruzada, evaluación de métricas y
+predicción espacial. Genera modelos individuales por especie cuando se cumplen
+los requisitos mínimos de registros.
 /
-Trains Random Forest models for Species Distribution Modeling (SDM) for
-multiple species in parallel. Performs data splitting, model evaluation
-and result storage. The function includes cross-validation and calculation
-of performance metrics.
+Executes Random Forest models for multiple species from presence/absence data,
+including cross-validation, metric evaluation, and spatial prediction.
+Generates individual models per species when minimum record requirements are met.
 }
 \details{
-El flujo de procesamiento para cada especie es:
+La función sigue este flujo por cada especie:
 \enumerate{
-\item Filtrado: Solo especies con >= Registros_Minimos registros
-\item Limpieza: Seleccion variables y eliminacion de NA
-\item Validacion: 10\% datos para validacion final
-\item Particion: 70\% entrenamiento, 30\% prueba del 90\% restante
-\item Modelado: Random Forest con 50 arboles y mtry=2
-\item Evaluacion: Metricas en entrenamiento, prueba y validacion
-\item Almacenamiento: Modelos y datos guardados en "ResultadosModelacionRf_Todo/"
-La funcion omite especies con:
-}
-\itemize{
-\item Menos de 5 registros despues de limpieza
-\item Una sola clase en la variable Presence
+\item Filtrado: Solo especies con al menos Registros_Minimos.
+\item Preprocesamiento: Limpieza de NA, factorización de Presence.
+\item Partición: 10\% validación final, del resto 70\% entrenamiento y 30\% prueba.
+\item Ajuste mtry: Si Tune_M_Try=TRUE, optimiza con tuneRF.
+\item Validación cruzada: Si Cross_V_Folds>1, calcula métricas por fold.
+\item Modelado: Entrena Random Forest con parámetros óptimos.
+\item Evaluación: Calcula múltiples métricas en entrenamiento, prueba y validación.
+\item Predicción espacial: Si hay stack raster, genera mapa de probabilidad.
+\item Almacenamiento: Si hay ruta, guarda modelos, gráficos y rasters.
 /
-The processing flow for each species is:
-}
-\enumerate{
-\item Filtering: Only species with >= Registros_Minimos records
-\item Cleaning: Variable selection and NA removal
-\item Validation: 10\% data for final validation
-\item Splitting: 70\% training, 30\% testing from remaining 90\%
-\item Modeling: Random Forest with 50 trees and mtry=2
-\item Evaluation: Metrics on training, testing and validation
-\item Storage: Models and data saved in "ResultadosModelacionRf_Todo/"
-The function skips species with:
-}
-\itemize{
-\item Fewer than 5 records after cleaning
-\item Only one class in the Presence variable
+The function follows this workflow per species:
+\item Filtering: Only species with at least Registros_Minimos.
+\item Preprocessing: NA cleaning, Presence factorization.
+\item Splitting: 10\% final validation, from remainder 70\% training and 30\% test.
+\item mtry tuning: If Tune_M_Try=TRUE, optimizes with tuneRF.
+\item Cross-validation: If Cross_V_Folds>1, calculates metrics per fold.
+\item Modeling: Trains Random Forest with optimal parameters.
+\item Evaluation: Calculates multiple metrics on training, test, and validation.
+\item Spatial prediction: If raster stack exists, generates probability map.
+\item Storage: If path provided, saves models, plots, and rasters.
 }
 }
 \note{
 \itemize{
-\item La columna "Presence" debe estar presente en todos los data.frames
-\item Las variables predictoras deben ser numericas o factoriales
-\item La carpeta "ResultadosModelacionRf_Todo" se crea en el directorio de trabajo
-\item Para calcular AUC, se necesitan ambas clases en datos de prueba
-\item Los modelos usan parametros fijos (ntree=50, mtry=2) para reproducibilidad
+\item Se requieren al menos 2 clases (presencia y ausencia) para modelar.
+\item La validación cruzada solo se realiza si hay suficientes datos.
+\item Las gráficas de importancia de variables y curvas ROC se guardan automáticamente.
+\item La función maneja errores internamente y omite especies problemáticas.
+\item Se asume que la columna Presence es factor con niveles 0 (ausencia) y 1 (presencia).
 /
-\item The "Presence" column must be present in all data.frames
-\item Predictor variables must be numeric or factor
-\item Folder "ResultadosModelacionRf_Todo" is created in working directory
-\item To calculate AUC, both classes are needed in test data
-\item Models use fixed parameters (ntree=50, mtry=2) for reproducibility
+\item At least 2 classes (presence and absence) are required for modeling.
+\item Cross-validation is only performed if enough data exists.
+\item Variable importance plots and ROC curves are saved automatically.
+\item The function handles errors internally and skips problematic species.
+\item Assumes Presence column is factor with levels 0 (absence) and 1 (presence).
 }
 }
 \section{Advertencias/Warnings}{
 
 \itemize{
-\item El proceso puede ser lento con muchas especies o muchos registros
-\item El muestreo estratificado requiere suficientes datos de cada clase
-\item Metricas pueden ser sesgadas con datos desbalanceados
-\item La validacion cruzada simple puede no ser optima para SDM
+\item Con muchas especies o variables, el tiempo de ejecución puede ser alto.
+\item La memoria requerida depende del tamaño del raster y número de especies.
+\item La calidad del modelo depende críticamente de la calidad de los datos de entrada.
+\item El umbral de Registros_Minimos debe ajustarse según la realidad de los datos.
 /
-\item Process can be slow with many species or many records
-\item Stratified sampling requires sufficient data from each class
-\item Metrics may be biased with unbalanced data
-\item Simple cross-validation may not be optimal for SDM
+\item With many species or variables, execution time may be high.
+\item Required memory depends on raster size and number of species.
+\item Model quality critically depends on input data quality.
+\item Registros_Minimos threshold should be adjusted based on data reality.
 }
 }
 
 \examples{
 \dontrun{
-# Crear datos de ejemplo / Create example data
-set.seed(123)
-datos_especie1 <- data.frame(
-  Presence = as.factor(sample(c(0,1), 50, replace = TRUE)),
-  temp = rnorm(50, 20, 5),
-  prec = rnorm(50, 1000, 200),
-  elev = runif(50, 0, 2000)
+# Cargar datos de ejemplo / Load example data
+data(presence_absence_data) # Lista con datos por especie / List with data per species
+data(predictor_stack) # Stack raster con variables / Raster stack with variables
+
+# Ejecutar modelos / Run models
+modelos <- Rf_SDM_multiple_species(
+Resultados_List = presence_absence_data,
+Variables = c("temp_mean", "precip", "elevation", "soil_type"),
+Registros_Minimos = 15,
+Stack_Raster_Reproyectado = predictor_stack,
+Ruta_Almacenamiento = "./resultados_sdm",
+N_Tree = 500,
+Set_Seed = 123,
+Cross_V_Folds = 5,
+Tune_M_Try = TRUE
 )
 
-datos_especie2 <- data.frame(
-  Presence = as.factor(sample(c(0,1), 30, replace = TRUE)),
-  temp = rnorm(30, 18, 4),
-  prec = rnorm(30, 1200, 150),
-  elev = runif(30, 500, 2500)
-)
+# Explorar resultados / Explore results
+names(modelos)
+modelos[["Quercus_robur"]]$accuracy_test
+modelos[["Quercus_robur"]]$auc
 
-lista_especies <- list(
-  Especie_A = datos_especie1,
-  Especie_B = datos_especie2
-)
-
-variables_modelo <- c("temp", "prec", "elev")
-
-# Ejecutar modelado / Run modeling
-resultados <- Rf_SDM_multiple_species(
-  Resultados_List = lista_especies,
-  variables = variables_modelo,
-  Registros_Minimos = 20
-)
-
-# Examinar resultados / Examine results
-names(resultados)
-resultados$Especie_A$accuracy_test
-resultados$Especie_A$importance
-
-# Ver modelos guardados / View saved models
-list.files("ResultadosModelacionRf_Todo/", pattern = ".rds")
+# Visualizar importancia de variables / Visualize variable importance
+barplot(sort(modelos[["Pinus_sylvestris"]]$importance[, "MeanDecreaseGini"],
+decreasing = TRUE))
 }
 
 }
 \seealso{
 \itemize{
-\item \code{\link[randomForest]{randomForest}} para detalles del algoritmo
-\item \code{\link[caret]{createDataPartition}} para particion estratificada
-\item \code{\link[pROC]{roc}} para calculo de curvas ROC
+\item \code{\link[randomForest]{randomForest}} para detalles del algoritmo.
+\item \code{\link[caret]{confusionMatrix}} para métricas de clasificación.
+\item \code{\link[pROC]{roc}} para curvas ROC.
+\item \code{\link[terra]{predict}} para predicción espacial.
 /
-\item \code{\link[randomForest]{randomForest}} for algorithm details
-\item \code{\link[caret]{createDataPartition}} for stratified splitting
-\item \code{\link[pROC]{roc}} for ROC curve calculation
+\item \code{\link[randomForest]{randomForest}} for algorithm details.
+\item \code{\link[caret]{confusionMatrix}} for classification metrics.
+\item \code{\link[pROC]{roc}} for ROC curves.
+\item \code{\link[terra]{predict}} for spatial prediction.
 }
 }
 \concept{funciones_modelado_especies, funciones_random_forest,
-species_modeling_functions, random_forest_functions}
-\keyword{SDM}
+funciones_distribucion_especies /
+species_modeling_functions, random_forest_functions,
+species_distribution_functions}
 \keyword{SDM,}
 \keyword{aprendizaje}
-\keyword{automatico,}
-\keyword{distribucion}
+\keyword{automático,}
+\keyword{cross-validation,}
+\keyword{cruzada,}
+\keyword{de}
+\keyword{distribución}
 \keyword{distribution}
+\keyword{espacial,}
 \keyword{especies,}
-\keyword{evaluacion}
+\keyword{evaluación}
 \keyword{evaluation,}
 \keyword{forest,}
 \keyword{learning,}
@@ -201,8 +229,10 @@ species_modeling_functions, random_forest_functions}
 \keyword{model}
 \keyword{modelado}
 \keyword{modeling,}
-\keyword{modelo,}
-\keyword{presence-absence,}
-\keyword{presencia-ausencia,}
+\keyword{modelos,}
+\keyword{predicción}
+\keyword{prediction}
 \keyword{random}
+\keyword{spatial}
 \keyword{species}
+\keyword{validación}
