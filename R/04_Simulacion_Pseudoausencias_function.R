@@ -213,7 +213,7 @@ Simulate_Pseudoabsences_No_NA_List_Df <- function(Resultados, Raster_CRS_Referen
         x = sf::st_coordinates(Coordenadas_Raster_Sf)[, "X"],
         y = sf::st_coordinates(Coordenadas_Raster_Sf)[, "Y"]
       ) %>%
-      dplyr::select(especievalida, everything())
+      dplyr::select(especievalida, dplyr::everything())
     Variables_Ambientales_Pseudoausencias_Df_Fuera_Radio <- Variables_Ambientales_Pseudoausencias_Df %>%
       dplyr::filter(Presence == 0)
     Raster_Nombre_Variables <- c("CarbonStock_05cmdepth_Mg_x_ha", "EvapoTransp")
@@ -228,7 +228,7 @@ Simulate_Pseudoabsences_No_NA_List_Df <- function(Resultados, Raster_CRS_Referen
       Especie_En_Procesamiento_Df <- as.data.frame(Especie_En_Procesamiento_Df)
     }
     Datos_Pseudoausencias_Para_Fusion <- Especie_En_Procesamiento_Df %>%
-      dplyr::select(especievalida, all_of(Raster_Nombre_Variables), longitud, latitud) %>%
+      dplyr::select(especievalida, dplyr::all_of(Raster_Nombre_Variables), longitud, latitud) %>%
       dplyr::mutate(
         ID = dplyr::row_number(),
         Presence = 1,
