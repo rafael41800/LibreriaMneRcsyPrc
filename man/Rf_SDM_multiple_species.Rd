@@ -13,7 +13,7 @@ Rf_SDM_multiple_species(
   Ruta_Almacenamiento = NULL,
   N_Tree = 100,
   Set_Seed = NULL,
-  Cross_V_Folds = 5,
+  Cross_V_Particiones = 5,
   Tune_M_Try = TRUE
 )
 }
@@ -55,7 +55,7 @@ If NULL, no files are saved.}
 \item{Set_Seed}{Semilla para reproducibilidad. Si es NULL, no se fija semilla.
 / Seed for reproducibility. If NULL, no seed is set.}
 
-\item{Cross_V_Folds}{Número de folds para validación cruzada. Si es 1 o menos,
+\item{Cross_V_Particiones}{Número de folds para validación cruzada. Si es 1 o menos,
 no se realiza validación cruzada. Por defecto 5.
 / Number of folds for cross-validation. If 1 or less, no cross-validation is
 performed. Default 5.}
@@ -71,7 +71,7 @@ modelo exitoso:
 \itemize{
 \item modelo: Objeto Random Forest entrenado.
 \item importance: Importancia de variables.
-\item cv_summary: Resumen de métricas de validación cruzada (si aplica).
+\item Resumen_Modelo_Temporal_CrossValidation: Resumen de métricas de validación cruzada (si aplica).
 \item accuracy_train, accuracy_test: Precisión en entrenamiento y prueba.
 \item sensitivity, specificity: Sensibilidad y especificidad.
 \item precision, recall, f1_score: Métricas de clasificación.
@@ -87,7 +87,7 @@ A named list (by species) with the following components for each successful mode
 \itemize{
 \item modelo: Trained Random Forest object.
 \item importance: Variable importance.
-\item cv_summary: Cross-validation metrics summary (if applicable).
+\item Resumen_Modelo_Temporal_CrossValidation: Cross-validation metrics summary (if applicable).
 \item accuracy_train, accuracy_test: Accuracy on training and test sets.
 \item sensitivity, specificity: Sensitivity and specificity.
 \item precision, recall, f1_score: Classification metrics.
@@ -116,7 +116,7 @@ La función sigue este flujo por cada especie:
 \item Preprocesamiento: Limpieza de NA, factorización de Presence.
 \item Partición: 10\% validación final, del resto 70\% entrenamiento y 30\% prueba.
 \item Ajuste mtry: Si Tune_M_Try=TRUE, optimiza con tuneRF.
-\item Validación cruzada: Si Cross_V_Folds>1, calcula métricas por fold.
+\item Validación cruzada: Si Cross_V_Particiones>1, calcula métricas por fold.
 \item Modelado: Entrena Random Forest con parámetros óptimos.
 \item Evaluación: Calcula múltiples métricas en entrenamiento, prueba y validación.
 \item Predicción espacial: Si hay stack raster, genera mapa de probabilidad.
@@ -127,7 +127,7 @@ The function follows this workflow per species:
 \item Preprocessing: NA cleaning, Presence factorization.
 \item Splitting: 10\% final validation, from remainder 70\% training and 30\% test.
 \item mtry tuning: If Tune_M_Try=TRUE, optimizes with tuneRF.
-\item Cross-validation: If Cross_V_Folds>1, calculates metrics per fold.
+\item Cross-validation: If Cross_V_Particiones>1, calculates metrics per fold.
 \item Modeling: Trains Random Forest with optimal parameters.
 \item Evaluation: Calculates multiple metrics on training, test, and validation.
 \item Spatial prediction: If raster stack exists, generates probability map.
@@ -179,7 +179,7 @@ Stack_Raster_Reproyectado = predictor_stack,
 Ruta_Almacenamiento = "./resultados_sdm",
 N_Tree = 500,
 Set_Seed = 123,
-Cross_V_Folds = 5,
+Cross_V_Particiones = 5,
 Tune_M_Try = TRUE
 )
 
