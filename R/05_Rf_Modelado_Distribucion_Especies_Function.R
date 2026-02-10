@@ -13,17 +13,26 @@
 #'
 #' @param Resultados_List Lista nombrada donde cada elemento corresponde a una
 #' especie y contiene un data.frame con columnas de presencia/ausencia y
-#' variables predictoras. Debe incluir la columna Presence (factor) y las
-#' variables especificadas en Variables.
+#' variables predictoras. Debe incluir la columna especificada en Variable_Presencia
+#' (factor) y las variables especificadas en Variables.
 #' / Named list where each element corresponds to a species and contains a
 #' data.frame with presence/absence columns and predictor variables. Must
-#' include the Presence column (factor) and variables specified in Variables.
+#' include the column specified in Variable_Presencia (factor) and variables
+#' specified in Variables.
 #'
 #' @param Variables Vector de caracteres con los nombres de las variables
 #' predictoras a utilizar en el modelado. Estas columnas deben estar presentes
-#' en los data.frames de Resultados_List.
+#' en los data.frames de Resultados_List. La función automáticamente incluye
+#' la columna especificada en Variable_Presencia.
 #' / Character vector with names of predictor variables to use in modeling.
 #' These columns must be present in the data.frames of Resultados_List.
+#' The function automatically includes the column specified in Variable_Presencia.
+#'
+#' @param Variable_Presencia Nombre de la columna que contiene los datos de
+#' presencia/ausencia (0/1). Por defecto es "Presence". Debe ser un factor con
+#' niveles 0 (ausencia) y 1 (presencia).
+#' / Name of the column containing presence/absence data (0/1). Default is
+#' "Presence". Must be a factor with levels 0 (absence) and 1 (presence).
 #'
 #' @param Registros_Minimos Número mínimo de registros (presencia + ausencia)
 #' requeridos para modelar una especie. Por defecto es 10.
@@ -65,14 +74,15 @@
 #' \item modelo: Objeto Random Forest entrenado.
 #' \item importance: Importancia de variables.
 #' \item Resumen_Modelo_Temporal_CrossValidation: Resumen de métricas de validación cruzada (si aplica).
-#' \item accuracy_train, accuracy_test: Precisión en entrenamiento y prueba.
+#' \item Exactitud_Datos_Entrenamiento, Exactitud_Datos_Prueba: Precisión en entrenamiento y prueba.
 #' \item sensitivity, specificity: Sensibilidad y especificidad.
 #' \item precision, recall, f1_score: Métricas de clasificación.
 #' \item kappa: Coeficiente Kappa.
 #' \item auc: Área bajo la curva ROC (si aplica).
-#' \item conf_matrix_train, conf_matrix_test, conf_matrix_val: Matrices de confusión.
+#' \item Matriz_Conf_Datos_Entrenamiento, Matriz_Conf_Datos_Prueba, Matriz_Confusion_Datos_Validacion: Matrices de confusión.
 #' \item roc_curve: Objeto curva ROC (si aplica).
 #' \item mtry_used, ntree_used: Parámetros usados.
+#' \item variable_presencia_used: Nombre de la variable de presencia utilizada.
 #' \item raster_prediction: Raster de predicción (si se proporcionó stack).
 #' }
 #' /
@@ -81,21 +91,22 @@
 #' \item modelo: Trained Random Forest object.
 #' \item importance: Variable importance.
 #' \item Resumen_Modelo_Temporal_CrossValidation: Cross-validation metrics summary (if applicable).
-#' \item accuracy_train, accuracy_test: Accuracy on training and test sets.
+#' \item Exactitud_Datos_Entrenamiento, Exactitud_Datos_Prueba: Accuracy on training and test sets.
 #' \item sensitivity, specificity: Sensitivity and specificity.
 #' \item precision, recall, f1_score: Classification metrics.
 #' \item kappa: Kappa coefficient.
 #' \item auc: Area under ROC curve (if applicable).
-#' \item conf_matrix_train, conf_matrix_test, conf_matrix_val: Confusion matrices.
+#' \item Matriz_Conf_Datos_Entrenamiento, Matriz_Conf_Datos_Prueba, Matriz_Confusion_Datos_Validacion: Confusion matrices.
 #' \item roc_curve: ROC curve object (if applicable).
 #' \item mtry_used, ntree_used: Parameters used.
+#' \item variable_presencia_used: Name of the presence variable used.
 #' \item raster_prediction: Prediction raster (if stack provided).
 #' }
 #'
 #' @details
 #' La función sigue este flujo por cada especie:
 #' 1. Filtrado: Solo especies con al menos Registros_Minimos.
-#' 2. Preprocesamiento: Limpieza de NA, factorización de Presence.
+#' 2. Preprocesamiento: Limpieza de NA, factorización de Variable_Presencia.
 #' 3. Partición: 10% validación final, del resto 70% entrenamiento y 30% prueba.
 #' 4. Ajuste mtry: Si Tune_M_Try=TRUE, optimiza con tuneRF.
 #' 5. Validación cruzada: Si Cross_V_Particiones>1, calcula métricas por fold.
@@ -106,7 +117,7 @@
 #' /
 #' The function follows this workflow per species:
 #' 1. Filtering: Only species with at least Registros_Minimos.
-#' 2. Preprocessing: NA cleaning, Presence factorization.
+#' 2. Preprocessing: NA cleaning, Variable_Presencia factorization.
 #' 3. Splitting: 10% final validation, from remainder 70% training and 30% test.
 #' 4. mtry tuning: If Tune_M_Try=TRUE, optimizes with tuneRF.
 #' 5. Cross-validation: If Cross_V_Particiones>1, calculates metrics per fold.
@@ -120,13 +131,15 @@
 #' * La validación cruzada solo se realiza si hay suficientes datos.
 #' * Las gráficas de importancia de variables y curvas ROC se guardan automáticamente.
 #' * La función maneja errores internamente y omite especies problemáticas.
-#' * Se asume que la columna Presence es factor con niveles 0 (ausencia) y 1 (presencia).
+#' * Se asume que Variable_Presencia es factor con niveles 0 (ausencia) y 1 (presencia).
+#' * La columna Variable_Presencia se incluye automáticamente en los datos de modelado.
 #' /
 #' * At least 2 classes (presence and absence) are required for modeling.
 #' * Cross-validation is only performed if enough data exists.
 #' * Variable importance plots and ROC curves are saved automatically.
 #' * The function handles errors internally and skips problematic species.
-#' * Assumes Presence column is factor with levels 0 (absence) and 1 (presence).
+#' * Assumes Variable_Presencia column is factor with levels 0 (absence) and 1 (presence).
+#' * The Variable_Presencia column is automatically included in the modeling data.
 #'
 #' @section Advertencias/Warnings:
 #' * Con muchas especies o variables, el tiempo de ejecución puede ser alto.
@@ -145,7 +158,7 @@
 #' data(presence_absence_data) # Lista con datos por especie / List with data per species
 #' data(predictor_stack) # Stack raster con variables / Raster stack with variables
 #'
-#' # Ejecutar modelos / Run models
+#' # Ejecutar modelos con nombre por defecto / Run models with default name
 #' modelos <- Rf_SDM_multiple_species(
 #' Resultados_List = presence_absence_data,
 #' Variables = c("temp_mean", "precip", "elevation", "soil_type"),
@@ -158,10 +171,25 @@
 #' Tune_M_Try = TRUE
 #' )
 #'
+#' # Ejecutar modelos con nombre personalizado / Run models with custom name
+#' modelos2 <- Rf_SDM_multiple_species(
+#' Resultados_List = presence_absence_data,
+#' Variables = c("temp_mean", "precip", "elevation", "soil_type"),
+#' Variable_Presencia = "Ocurrencia",
+#' Registros_Minimos = 15,
+#' Stack_Raster_Reproyectado = predictor_stack,
+#' Ruta_Almacenamiento = "./resultados_sdm2",
+#' N_Tree = 500,
+#' Set_Seed = 123,
+#' Cross_V_Particiones = 5,
+#' Tune_M_Try = TRUE
+#' )
+#'
 #' # Explorar resultados / Explore results
 #' names(modelos)
-#' modelos[["Quercus_robur"]]$accuracy_test
+#' modelos[["Quercus_robur"]]$Exactitud_Datos_Prueba
 #' modelos[["Quercus_robur"]]$auc
+#' modelos[["Quercus_robur"]]$variable_presencia_used
 #'
 #' # Visualizar importancia de variables / Visualize variable importance
 #' barplot(sort(modelos[["Pinus_sylvestris"]]$importance[, "MeanDecreaseGini"],
@@ -200,7 +228,7 @@
 #' @importFrom grDevices png dev.off
 #' @importFrom utils globalVariables
 #' @export
-Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimos = 10,
+Rf_SDM_multiple_species <- function(Resultados_List, Variables, Variable_Presencia = "Presence", Registros_Minimos = 10,
                                     Stack_Raster_Reproyectado = NULL, Ruta_Almacenamiento = NULL,
                                     N_Tree = 100, Set_Seed = NULL,
                                     Cross_V_Particiones = 5, Tune_M_Try = TRUE) {
@@ -210,24 +238,24 @@ Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimo
       if(!is.null(Set_Seed)) set.seed(Set_Seed)
       Datos_Presencias_Ausencias_Juntos_Df <- as.data.frame(Resultados_List[[m]])
       Datos_Presencias_Ausencias_Juntos_Df_Clean <- Datos_Presencias_Ausencias_Juntos_Df %>%
-        dplyr::select(all_of(Variables))
+        dplyr::select(all_of(Variable_Presencia), all_of(Variables))  # MODIFICADO
       Datos_Para_Modelado <- as.data.frame(Datos_Presencias_Ausencias_Juntos_Df_Clean)
       Datos_Para_Modelado <- Datos_Para_Modelado[stats::complete.cases(Datos_Para_Modelado), ]
       if(nrow(Datos_Para_Modelado) < Registros_Minimos) next
-      Datos_Para_Modelado$Presence <- as.factor(Datos_Para_Modelado$Presence)
-      if(length(unique(Datos_Para_Modelado$Presence)) < 2) next
-      Indices_Validacion <- caret::createDataPartition(Datos_Para_Modelado$Presence, p = 0.1, list = FALSE)
+      Datos_Para_Modelado[[Variable_Presencia]] <- as.factor(Datos_Para_Modelado[[Variable_Presencia]])  # MODIFICADO
+      if(length(unique(Datos_Para_Modelado[[Variable_Presencia]])) < 2) next  # MODIFICADO
+      Indices_Validacion <- caret::createDataPartition(Datos_Para_Modelado[[Variable_Presencia]], p = 0.1, list = FALSE)  # MODIFICADO
       Datos_Para_Validacion <- Datos_Para_Modelado[Indices_Validacion, ]
       Datos_Para_Modelacion <- Datos_Para_Modelado[-Indices_Validacion, ]
-      Indices_Entrenamiento <- caret::createDataPartition(Datos_Para_Modelacion$Presence, p = 0.7, list = FALSE)
+      Indices_Entrenamiento <- caret::createDataPartition(Datos_Para_Modelacion[[Variable_Presencia]], p = 0.7, list = FALSE)  # MODIFICADO
       Datos_Para_Entrenamiento <- Datos_Para_Modelacion[Indices_Entrenamiento, ]
       Datos_Para_Testeo <- Datos_Para_Modelacion[-Indices_Entrenamiento, ]
       mtry_optimal <- 2
       if(Tune_M_Try && nrow(Datos_Para_Entrenamiento) >= Registros_Minimos) {
         tryCatch({
           tuneRF_result <- randomForest::tuneRF(
-            x = Datos_Para_Entrenamiento[, !names(Datos_Para_Entrenamiento) %in% "Presence"],
-            y = Datos_Para_Entrenamiento$Presence,
+            x = Datos_Para_Entrenamiento[, !names(Datos_Para_Entrenamiento) %in% Variable_Presencia],  # MODIFICADO
+            y = Datos_Para_Entrenamiento[[Variable_Presencia]],  # MODIFICADO
             ntreeTry = min(100, N_Tree),
             stepFactor = 1.5,
             improve = 0.01,
@@ -240,15 +268,16 @@ Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimo
         }, error = function(e) {})
       }
       if(Cross_V_Particiones > 1 && nrow(Datos_Para_Entrenamiento) > Cross_V_Particiones * 5) {
-        Indices_Cross_Validation <- caret::createFolds(Datos_Para_Entrenamiento$Presence, k = Cross_V_Particiones)
+        Indices_Cross_Validation <- caret::createFolds(Datos_Para_Entrenamiento[[Variable_Presencia]], k = Cross_V_Particiones)  # MODIFICADO
         Metricas_Cross_Validation <- list()
         for(fold in 1:Cross_V_Particiones) {
           Indices_Particion_Entrenamiento <- unlist(Indices_Cross_Validation[-fold])
           Indices_Particion_Validacion <- Indices_Cross_Validation[[fold]]
           Particiones_Para_Entrenamiento <- Datos_Para_Entrenamiento[Indices_Particion_Entrenamiento, ]
           Particiones_Para_Validacion <- Datos_Para_Entrenamiento[Indices_Particion_Validacion, ]
+          formula_rf <- as.formula(paste(Variable_Presencia, "~ ."))  # MODIFICADO
           Modelo_Temporal_CrossValidation <- randomForest::randomForest(
-            Presence ~ .,
+            formula_rf,  # MODIFICADO
             data = Particiones_Para_Entrenamiento,
             importance = FALSE,
             ntree = N_Tree,
@@ -257,7 +286,7 @@ Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimo
             verbose = FALSE
           )
           Prediccion_CrossValidation <- stats::predict(Modelo_Temporal_CrossValidation, Particiones_Para_Validacion)
-          Matriz_Confusion_CrossValidation <- caret::confusionMatrix(Prediccion_CrossValidation, Particiones_Para_Validacion$Presence, positive = "1")
+          Matriz_Confusion_CrossValidation <- caret::confusionMatrix(Prediccion_CrossValidation, Particiones_Para_Validacion[[Variable_Presencia]], positive = "1")  # MODIFICADO
           Metricas_Cross_Validation[[fold]] <- list(
             accuracy = Matriz_Confusion_CrossValidation$overall["Accuracy"],
             sensitivity = Matriz_Confusion_CrossValidation$byClass["Sensitivity"],
@@ -274,8 +303,9 @@ Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimo
       } else {
         Resumen_Modelo_Temporal_CrossValidation <- NULL
       }
+      formula_rf <- as.formula(paste(Variable_Presencia, "~ ."))  # MODIFICADO
       RF_model <- randomForest::randomForest(
-        Presence ~ .,
+        formula_rf,  # MODIFICADO
         data = Datos_Para_Entrenamiento,
         importance = TRUE,
         ntree = N_Tree,
@@ -283,29 +313,29 @@ Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimo
         do.trace = FALSE,
         verbose = FALSE
       )
-      Predict.Train.Data <- stats::predict(RF_model, Datos_Para_Entrenamiento)
-      Predict.Test.Data <- stats::predict(RF_model, Datos_Para_Testeo)
-      conf_matrix_train <- caret::confusionMatrix(Predict.Train.Data,
-                                                  Datos_Para_Entrenamiento$Presence)
-      conf_matrix_test <- caret::confusionMatrix(Predict.Test.Data,
-                                                 Datos_Para_Testeo$Presence)
-      accuracy_train <- conf_matrix_train$overall["Accuracy"]
-      accuracy_test <- conf_matrix_test$overall["Accuracy"]
-      sensitivity_test <- conf_matrix_test$byClass["Sensitivity"]
-      specificity_test <- conf_matrix_test$byClass["Specificity"]
-      kappa_test <- conf_matrix_test$overall["Kappa"]
-      Predict.Test.Prob <- stats::predict(RF_model, Datos_Para_Testeo, type = "prob")
+      Prediccion_Datos_Entrenamiento <- stats::predict(RF_model, Datos_Para_Entrenamiento)
+      Prediccion_Datos_Prueba <- stats::predict(RF_model, Datos_Para_Testeo)
+      Matriz_Conf_Datos_Entrenamiento <- caret::confusionMatrix(Prediccion_Datos_Entrenamiento,
+                                                                Datos_Para_Entrenamiento[[Variable_Presencia]])  # MODIFICADO
+      Matriz_Conf_Datos_Prueba <- caret::confusionMatrix(Prediccion_Datos_Prueba,
+                                                         Datos_Para_Testeo[[Variable_Presencia]])  # MODIFICADO
+      Exactitud_Datos_Entrenamiento <- Matriz_Conf_Datos_Entrenamiento$overall["Accuracy"]
+      Exactitud_Datos_Prueba <- Matriz_Conf_Datos_Prueba$overall["Accuracy"]
+      Sensibilidad_Datos_Prueba <- Matriz_Conf_Datos_Prueba$byClass["Sensitivity"]
+      Especificidad_Datos_Prueba <- Matriz_Conf_Datos_Prueba$byClass["Specificity"]
+      kappa_test <- Matriz_Conf_Datos_Prueba$overall["Kappa"]
+      Prediccion_Proba_Datos_Prueba <- stats::predict(RF_model, Datos_Para_Testeo, type = "prob")
       auc_value <- NA
       roc_curve <- NULL
-      if(length(unique(Datos_Para_Testeo$Presence)) > 1) {
-        roc_curve <- pROC::roc(response = Datos_Para_Testeo$Presence,
-                               predictor = Predict.Test.Prob[, "1"])
+      if(length(unique(Datos_Para_Testeo[[Variable_Presencia]])) > 1) {  # MODIFICADO
+        roc_curve <- pROC::roc(response = Datos_Para_Testeo[[Variable_Presencia]],  # MODIFICADO
+                               predictor = Prediccion_Proba_Datos_Prueba[, "1"])
         auc_value <- pROC::auc(roc_curve)
       }
-      Predict.Validation.Data <- stats::predict(RF_model, Datos_Para_Validacion)
-      conf_matrix_val <- caret::confusionMatrix(Predict.Validation.Data, Datos_Para_Validacion$Presence)
-      precision_test <- conf_matrix_test$byClass["Pos Pred Value"]
-      recall_test <- conf_matrix_test$byClass["Sensitivity"]
+      Prediccion_Datos_Validacion <- stats::predict(RF_model, Datos_Para_Validacion)
+      Matriz_Confusion_Datos_Validacion <- caret::confusionMatrix(Prediccion_Datos_Validacion, Datos_Para_Validacion[[Variable_Presencia]])  # MODIFICADO
+      precision_test <- Matriz_Conf_Datos_Prueba$byClass["Pos Pred Value"]
+      recall_test <- Matriz_Conf_Datos_Prueba$byClass["Sensitivity"]
       f1_test <- if(!is.na(precision_test) && !is.na(recall_test) && (precision_test + recall_test) > 0) {
         2 * (precision_test * recall_test) / (precision_test + recall_test)
       } else NA
@@ -313,21 +343,22 @@ Rf_SDM_multiple_species <- function(Resultados_List, Variables, Registros_Minimo
         modelo = RF_model,
         importance = as.data.frame(RF_model$importance),
         Resumen_Modelo_Temporal_CrossValidation = Resumen_Modelo_Temporal_CrossValidation,
-        accuracy_train = accuracy_train,
-        accuracy_test = accuracy_test,
-        sensitivity = sensitivity_test,
-        specificity = specificity_test,
+        Exactitud_Datos_Entrenamiento = Exactitud_Datos_Entrenamiento,
+        Exactitud_Datos_Prueba = Exactitud_Datos_Prueba,
+        sensitivity = Sensibilidad_Datos_Prueba,
+        specificity = Especificidad_Datos_Prueba,
         precision = precision_test,
         recall = recall_test,
         f1_score = f1_test,
         kappa = kappa_test,
         auc = auc_value,
-        conf_matrix_train = conf_matrix_train,
-        conf_matrix_test = conf_matrix_test,
-        conf_matrix_val = conf_matrix_val,
+        Matriz_Conf_Datos_Entrenamiento = Matriz_Conf_Datos_Entrenamiento,
+        Matriz_Conf_Datos_Prueba = Matriz_Conf_Datos_Prueba,
+        Matriz_Confusion_Datos_Validacion = Matriz_Confusion_Datos_Validacion,
         roc_curve = roc_curve,
         mtry_used = mtry_optimal,
-        ntree_used = N_Tree
+        ntree_used = N_Tree,
+        variable_presencia_used = Variable_Presencia  # MODIFICADO
       )
       if(!is.null(Ruta_Almacenamiento)) {
         dir.create(Ruta_Almacenamiento, showWarnings = FALSE, recursive = TRUE)
