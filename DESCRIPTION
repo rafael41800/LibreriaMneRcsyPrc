@@ -1,8 +1,8 @@
 Package: LibreriaMneRcsyPrc
-Title: What the Package Does (One Line, Title Case)
-Version: 1.1.0
+Title: Herramientas para Modelado Estadistico de Datos Espaciotemporales
+Version: 1.2.0
 Authors@R: 
-    person("Rafael", "Chávez Santiago", , "rafaelchavezsantiago@gmail.com", role = c("aut", "cre"))
+    person("Rafael", "Chavez Santiago", , "rafaelchavezsantiago@gmail.com", role = c("aut", "cre"))
 Description: Proporciona herramientas para modelado estadistico de datos
     espaciotemporales, incluyendo funciones para analisis de
     regresion, visualizacion y procesamiento de datos geoespaciales.
@@ -20,6 +20,8 @@ Imports:
     dplyr (>= 1.0.0),
     pROC,
     randomForest,
+    rlang,
+    stats,
     terra (>= 1.6.0),
     sf (>= 1.0.0)
 Suggests:
