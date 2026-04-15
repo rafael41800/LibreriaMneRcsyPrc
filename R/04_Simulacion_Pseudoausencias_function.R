@@ -11,23 +11,36 @@
 #'   environmental data quality.
 #'
 #' @param Resultados Lista nombrada donde cada elemento es un dataframe con los datos
-#'   de presencia de una especie. Cada dataframe debe contener las columnas:
+#'   de presencia de una especie. Cada dataframe debe contener de las columnas:
 #'   `especievalida`, `longitud`, `latitud`, y las variables ambientales necesarias.
+#'   Valor por defecto: no tiene.
 #'
 #'   Named list where each element is a dataframe with presence data for a species.
 #'   Each dataframe must contain the columns: `especievalida`, `longitud`, `latitud`,
-#'   and the necessary environmental variables.
+#'   and the necessary environmental variables. Default: none.
 #'
 #' @param Raster_CRS_Referencia Objeto SpatRaster de terra que contiene las variables
 #'   ambientales en la proyeccion de referencia para el analisis.
 #'
 #'   terra SpatRaster object containing environmental variables in the reference
-#'   projection for analysis.
+#'   projection for analysis. Must contain the layers `CarbonStock_05cmdepth_Mg_x_ha`
+#'   and `EvapoTransp`.
 #'
 #' @param Objeto_CRS_referencia CRS objetivo (como objeto sf::crs) para transformar
 #'   las coordenadas finales de los datos.
 #'
 #'   Target CRS (as sf::crs object) to transform the final data coordinates.
+#'
+#' @param Radio_Grados_Exclusión Radio de exclusion en grados para coordenadas geograficas
+#'   (longitud/latitud). Valor por defecto: `0.001`.
+#'
+#'   Exclusion radius in degrees for geographic coordinates (longitude/latitude).
+#'   Default: `0.001`.
+#'
+#' @param Radio_Metros_Exclusión Radio de exclusion en metros para coordenadas proyectadas.
+#'   Valor por defecto: `100`.
+#'
+#'   Exclusion radius in meters for projected coordinates. Default: `100`.
 #'
 #' @return
 #'   Una lista invisible con el mismo nombre que la lista de entrada, donde cada
@@ -52,10 +65,10 @@
 #'   \enumerate{
 #'     \item Conversion de coordenadas de presencias a objetos espaciales /
 #'           Conversion of presence coordinates to spatial objects
-#'     \item Creacion de un buffer de exclusion alrededor de las presencias (0.1° para
-#'           coordenadas geograficas, 10000 metros para coordenadas proyectadas) /
-#'           Creation of an exclusion buffer around presences (0.1° for geographic
-#'           coordinates, 10000 meters for projected coordinates)
+#'     \item Creacion de un buffer de exclusion alrededor de las presencias (0.001° para
+#'           coordenadas geograficas, 100 metros para coordenadas proyectadas) /
+#'           Creation of an exclusion buffer around presences (0.001° for geographic
+#'           coordinates, 100 meters for projected coordinates)
 #'     \item Identificacion de celdas raster disponibles para pseudoausencias /
 #'           Identification of available raster cells for pseudoabsences
 #'     \item Generacion de pseudoausencias en numero igual al de presencias (o menor
@@ -73,6 +86,7 @@
 #'     \item Transformacion al sistema de coordenadas objetivo /
 #'           Transformation to the target coordinate system
 #'   }
+#'   La funcion imprime mensajes de progreso durante la ejecucion.
 #'
 #' @note
 #'   \strong{Notas importantes / Important notes:}
@@ -90,6 +104,7 @@
 #'     \item Se detiene la ejecucion con error si no hay celdas disponibles para
 #'           pseudoausencias. /
 #'           Execution stops with an error if no cells are available for pseudoabsences.
+#'     \item El resultado se retorna con `return(invisible(...))`.
 #'   }
 #'
 #' @examples
@@ -134,7 +149,6 @@
 #' length(resultado)
 #' }
 #'
-#'
 #' @seealso
 #'   \itemize{
 #'     \item \code{\link[terra]{rast}} para crear objetos raster /
@@ -158,7 +172,7 @@
 #' @importFrom terra cellFromXY values xyFromCell crs vect extract
 #' @importFrom dplyr %>% mutate select filter if_all everything bind_rows row_number
 #' @export
-Simulate_Pseudoabsences_No_NA_List_Df <- function(Resultados, Raster_CRS_Referencia, Objeto_CRS_referencia){
+Simulate_Pseudoabsences_No_NA_List_Df <- function(Resultados, Raster_CRS_Referencia, Objeto_CRS_referencia, Radio_Grados_Exclusión = 0.001, Radio_Metros_Exclusión = 100){
   resultados_finales_List <- list()
   for (i in names(Resultados)) {
     Especie_En_Procesamiento_Df <- Resultados[[i]]
@@ -167,13 +181,13 @@ Simulate_Pseudoabsences_No_NA_List_Df <- function(Resultados, Raster_CRS_Referen
                    crs = 4326) %>%
       sf::st_transform(sf::st_crs(Raster_CRS_Referencia))
     if (sf::st_is_longlat(Presencias_Sin_Na_sf)) {
-      Radio_Presencia <- 0.1
+      Radio_Presencia <- Radio_Grados_Exclusión
       Poligono_Radio <- Presencias_Sin_Na_sf %>%
         sf::st_buffer(dist = Radio_Presencia) %>%
         sf::st_union() %>%
         sf::st_as_sf()
     } else {
-      Radio_Presencia <- 10000
+      Radio_Presencia <- Radio_Metros_Exclusión
       Poligono_Radio <- Presencias_Sin_Na_sf %>%
         sf::st_buffer(dist = Radio_Presencia) %>%
         sf::st_union() %>%

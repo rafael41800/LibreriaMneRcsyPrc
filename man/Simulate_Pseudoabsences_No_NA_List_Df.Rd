@@ -8,28 +8,43 @@ Simulation of Pseudoabsences for Species Distribution Modeling}
 Simulate_Pseudoabsences_No_NA_List_Df(
   Resultados,
   Raster_CRS_Referencia,
-  Objeto_CRS_referencia
+  Objeto_CRS_referencia,
+  Radio_Grados_Exclusión = 0.001,
+  Radio_Metros_Exclusión = 100
 )
 }
 \arguments{
 \item{Resultados}{Lista nombrada donde cada elemento es un dataframe con los datos
-de presencia de una especie. Cada dataframe debe contener las columnas:
+de presencia de una especie. Cada dataframe debe contener de las columnas:
 \code{especievalida}, \code{longitud}, \code{latitud}, y las variables ambientales necesarias.
+Valor por defecto: no tiene.
 
 Named list where each element is a dataframe with presence data for a species.
 Each dataframe must contain the columns: \code{especievalida}, \code{longitud}, \code{latitud},
-and the necessary environmental variables.}
+and the necessary environmental variables. Default: none.}
 
 \item{Raster_CRS_Referencia}{Objeto SpatRaster de terra que contiene las variables
 ambientales en la proyeccion de referencia para el analisis.
 
 terra SpatRaster object containing environmental variables in the reference
-projection for analysis.}
+projection for analysis. Must contain the layers \code{CarbonStock_05cmdepth_Mg_x_ha}
+and \code{EvapoTransp}.}
 
 \item{Objeto_CRS_referencia}{CRS objetivo (como objeto sf::crs) para transformar
 las coordenadas finales de los datos.
 
 Target CRS (as sf::crs object) to transform the final data coordinates.}
+
+\item{Radio_Grados_Exclusión}{Radio de exclusion en grados para coordenadas geograficas
+(longitud/latitud). Valor por defecto: \code{0.001}.
+
+Exclusion radius in degrees for geographic coordinates (longitude/latitude).
+Default: \code{0.001}.}
+
+\item{Radio_Metros_Exclusión}{Radio de exclusion en metros para coordenadas proyectadas.
+Valor por defecto: \code{100}.
+
+Exclusion radius in meters for projected coordinates. Default: \code{100}.}
 }
 \value{
 Una lista invisible con el mismo nombre que la lista de entrada, donde cada
@@ -63,10 +78,10 @@ environmental data quality.
 \enumerate{
 \item Conversion de coordenadas de presencias a objetos espaciales /
 Conversion of presence coordinates to spatial objects
-\item Creacion de un buffer de exclusion alrededor de las presencias (0.1° para
-coordenadas geograficas, 10000 metros para coordenadas proyectadas) /
-Creation of an exclusion buffer around presences (0.1° for geographic
-coordinates, 10000 meters for projected coordinates)
+\item Creacion de un buffer de exclusion alrededor de las presencias (0.001° para
+coordenadas geograficas, 100 metros para coordenadas proyectadas) /
+Creation of an exclusion buffer around presences (0.001° for geographic
+coordinates, 100 meters for projected coordinates)
 \item Identificacion de celdas raster disponibles para pseudoausencias /
 Identification of available raster cells for pseudoabsences
 \item Generacion de pseudoausencias en numero igual al de presencias (o menor
@@ -84,6 +99,7 @@ Combination of presences and pseudoabsences into a single dataset
 \item Transformacion al sistema de coordenadas objetivo /
 Transformation to the target coordinate system
 }
+La funcion imprime mensajes de progreso durante la ejecucion.
 }
 \note{
 \strong{Notas importantes / Important notes:}
@@ -101,6 +117,7 @@ biologically meaningful distances.
 \item Se detiene la ejecucion con error si no hay celdas disponibles para
 pseudoausencias. /
 Execution stops with an error if no cells are available for pseudoabsences.
+\item El resultado se retorna con \code{return(invisible(...))}.
 }
 }
 \examples{
@@ -144,7 +161,6 @@ resultado <- Simulate_Pseudoabsences_No_NA_List_Df(
 str(resultado)
 length(resultado)
 }
-
 
 }
 \seealso{

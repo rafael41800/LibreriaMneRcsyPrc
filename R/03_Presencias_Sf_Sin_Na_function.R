@@ -259,7 +259,7 @@ Presences_Sf_No_Na_List_Df <- function(Data_Sf, raster_referencia_reproyectado, 
     Variables_Puro_NA <- names(Df_Presencias)[!names(Df_Presencias) %in% names(Presencias_Parcial_Na)]
     Df_Presencias_Sin_Na <- Presencias_Parcial_Na[complete.cases(Presencias_Parcial_Na), ]
     resultados[[as.character(l)]] <- Df_Presencias_Sin_Na
-    print(paste("Se han eliminado las columnas:", paste(Variables_Puro_NA, collapse = ", ")))
+    print(paste("Del DF se ha(n) eliminado la(s) columna(s) siguiente(s):", paste(Variables_Puro_NA, collapse = ", ")))
   }
   return(invisible(resultados))
 }
