@@ -25,6 +25,9 @@ Imports:
     terra (>= 1.6.0),
     sf (>= 1.0.0)
 Suggests:
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 URL: https://github.com/rafael41800/LibreriaMneRcsyPrc
 BugReports: https://github.com/rafael41800/LibreriaMneRcsyPrc/issues
+VignetteBuilder: knitr

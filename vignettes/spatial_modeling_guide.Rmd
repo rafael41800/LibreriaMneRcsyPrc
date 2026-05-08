@@ -1,0 +1,155 @@
+---
+title: "Guía Completa: Modelado de Distribución de Especies (SDM) con LibreriaMneRcsyPrc"
+author: "Rafael C. S."
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Guía Completa: Modelado de Distribución de Especies (SDM) con LibreriaMneRcsyPrc}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r, include = FALSE, eval = FALSE}
+# knitr::opts_chunk$set(
+#   collapse = TRUE,
+#   comment = "#>",
+#   warning = FALSE,
+#   message = FALSE
+# )
+```
+## Introduction | Introducción
+The LibreriaMneRcsyPrc package provides a robust and automated pipeline designed to bridge the gap between raw biological occurrence data and professional Species Distribution Models (SDM). This workflow ensures data quality, spatial consistency, and statistical rigor through a 5-step process.
+
+El paquete LibreriaMneRcsyPrc proporciona un flujo de trabajo robusto y automatizado diseñado para cerrar la brecha entre los datos brutos de ocurrencia biológica y los Modelos de Distribución de Especies (SDM) profesionales.
+
+### Step 1: Point Cleaning | Limpieza de Puntos
+Function: CleaningTransformingDfToSf
+
+The first step converts raw tabular data into high-quality spatial objects (sf), ensuring points fall within the study area and eliminating duplicates.
+
+Latitude Filtering: Removes records outside the area of interest.
+
+Coordinate Cleaning: Discards rows with NA values.
+
+Spatial Conversion: Transforms data.frame to sf.
+
+Reprojection: Aligns points with the base map CRS.
+
+Geographic Clipping: Keeps points within the reference polygon.
+
+Deduplication: Removes redundant species/coordinate records.
+
+```{r, eval = FALSE}
+# library(sf)
+# library(LibreriaMneRcsyPrc)
+# 
+# # Load raw data and reference polygon
+# mexico_ref <- st_read("mexico.shp")
+# 
+# clean_points <- CleaningTransformingDfToSf(
+#   DataFrame = occurrences_raw,
+#   SpatialReference = mexico_ref,
+#   Latitude = 14,
+#   Variables = c("diameter"),
+#   EspecieColumna = "validspecies",
+#   SCR = 4326,
+#   verbose = TRUE
+# )
+```
+### Step 2: Environmental Standardization | Estandarización Ambiental
+Function: ProcessingRasterToAssignCrs
+
+This ensures spatial consistency between environmental layers and biological data. All predictors must share the exact same CRS, extent, and resolution.
+
+Memory Optimization: Uses terra global options for large files.
+
+Transformation: Reprojects the SpatRaster to the target CRS.
+
+Geographic Alignment: Crops and masks to the study area.
+
+```{r, eval = FALSE}
+# library(terra)
+# 
+# # Load raw raster and standardize
+# global_clim <- rast("worldclim_data.tif")
+# 
+# local_raster <- ProcessingRasterToAssignCrs(
+#   RasterObject = global_clim,
+#   SpatialReference = mexico_ref,
+#   verbose = TRUE
+# )
+```
+### Step 3: Data Integration | Integración de Datos
+Function: PresencesSfNoNaListDf
+
+This function extracts environmental values for all points and segments them into a structured list by species, automatically filtering out records outside the grid.
+
+```{r, eval = FALSE}
+# extraction_list <- PresencesSfNoNaListDf(
+#   DataSf = clean_points,
+#   RasterReferencia = local_raster,
+#   EspecieValida = "validspecies",
+#   verbose = TRUE
+# )
+```
+### Step 4: Pseudo-absence Generation | Generación de Pseudo-ausencias
+Function: SimulatePseudoabsencesNoNAListDf
+
+Simulates "background" points using an exclusion buffer strategy to avoid false negatives.
+
+Buffer Creation: Safety radius around presence points.
+
+Balanced Sampling: Ensures a balanced dataset for the Random Forest algorithm.
+
+```{r, eval = FALSE}
+# sdm_data <- SimulatePseudoabsencesNoNAListDf(
+#   Resultados = extraction_list,
+#   RasterCrsReferencia = local_raster,
+#   ObjetoCrsReferencia = st_crs(mexico_ref),
+#   NombreVariablesAmbientales = names(local_raster),
+#   RadioMetrosExclusion = 1000,
+#   seed = 123,
+#   verbose = TRUE
+# )
+```
+### Step 5: Predictive Modeling | Modelado Predictivo
+Function: RfMdeMultiEspeciesRobusta
+
+Automates training, validating, and projecting Random Forest models for multiple species simultaneously.
+
+Triple-Split Strategy: Independent Validation (10%), Training (~70%), and Testing (~20%).
+
+Hyperparameter Tuning: Optimizes mtry using the tuneRF algorithm.
+
+K-Fold Cross-Validation: Internal validation for robust performance assessment.
+
+Spatial Prediction: Generates continuous probability maps (TIFF).
+
+```{r, eval = FALSE}
+# library(randomForest)
+# library(caret)
+# library(pROC)
+# library(LibreriaMneRcsyPrc)
+# 
+# results <- RfMdeMultiEspeciesRobusta(
+#   ResultadosList = sdm_data,
+#   Variables = names(local_raster),
+#   VariablePresencia = "Presence",
+#   StackRasterReproyectado = local_raster,
+#   RutaAlmacenamiento = "./outputs/models",
+#   NTree = 500,
+#   TuneMTry = TRUE,
+#   verbose = TRUE
+# )
+# 
+# # Accessing metrics for a species
+# # results[["Species_Name"]]$auc
+# # results[["Species_Name"]]$kappa
+```
+### Why use this workflow? | ¿Por qué usar este flujo?
+Reproducibility: Every step is standardized. | Cada paso está estandarizado.
+
+Performance: Optimized for large datasets using terra. | Optimizado para grandes conjuntos de datos.
+
+Accuracy: Implements strict spatial and environmental filters. | Filtros espaciales y ambientales estrictos.
+
+Robustness: Includes triple-split validation and hyperparameter tuning. | Incluye validación de triple partición y ajuste de hiperparámetros.

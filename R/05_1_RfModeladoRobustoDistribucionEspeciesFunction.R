@@ -15,18 +15,16 @@
 #' @param SetSeed Semilla para reproducibilidad.
 #' @param CrossValidationParticiones Numero de folds para k-fold CV. Por defecto `5`.
 #' @param TuneMTry Logico. ¿Optimizar `mtry` automaticamente? Por defecto `TRUE`.
-#' @param GuardarDatos Opcion para guardar los datos usados en el modelo:
-#'        `"none"` (default), `"train"`, `"valid"` o `"both"`.
 #' @param verbose Logico. Muestra el progreso del modelado.
 #'
 #' @return
 #' Una lista nombrada por especie que contiene: modelo, importancia, metricas
-#' (AUC, Kappa, F1), raster de prediccion (si se proporciono el stack) y,
-#' opcionalmente, los conjuntos de entrenamiento y validacion.
+#' (AUC, Kappa, F1) y el raster de prediccion (si se proporciono el stack).
 #'
 #' @details
-#' La funcion realiza una particion de datos: 75% para entrenamiento y 25% para validacion.
-#' Si `TuneMTry` es `TRUE`, utiliza `tuneRF` para optimizar el parametro `mtry`.
+#' La funcion realiza una particion de datos: 10% para validacion externa,
+#' y del resto, un 77% para entrenamiento y 23% para prueba. Si `TuneMTry` es `TRUE`,
+#' utiliza `tuneRF` para optimizar el parametro `mtry`.
 #'
 #' @section Advertencias:
 #' \itemize{
@@ -47,7 +45,7 @@
 #' @importFrom stats as.formula na.omit predict
 #' @importFrom grDevices png dev.off
 #' @export
-RfMdeMultiEspecies <- function(ResultadosList,
+RfMdeMultiEspeciesRobusta <- function(ResultadosList,
                                Variables,
                                VariablePresencia = "Presence",
                                RegistrosMinimos = 10,
@@ -57,11 +55,7 @@ RfMdeMultiEspecies <- function(ResultadosList,
                                SetSeed = NULL,
                                CrossValidationParticiones = 5,
                                TuneMTry = TRUE,
-                               GuardarDatos = c("none", "train", "valid", "both"),
                                verbose = TRUE) {
-
-  # Validar argumento GuardarDatos
-  GuardarDatos <- match.arg(GuardarDatos)
 
   if(!is.null(SetSeed)) set.seed(SetSeed)
   modelos_especies <- list()
@@ -69,7 +63,7 @@ RfMdeMultiEspecies <- function(ResultadosList,
   VariablePresencia <- as.character(VariablePresencia)
   Variables <- as.character(Variables)
 
-  if(verbose) message("\n--- [INICIO] Modelado Random Forest Multiespecie (75% train / 25% valid) ---")
+  if(verbose) message("\n--- [INICIO] Modelado Random Forest Multiespecie ---")
 
   NombresEspecies <- names(ResultadosList)
 
@@ -102,13 +96,16 @@ RfMdeMultiEspecies <- function(ResultadosList,
 
     if(verbose) message(sprintf("-> Procesando [%d/%d]: %s", idx, length(NombresEspecies), m))
 
-    # --- Particion 75% entrenamiento, 25% validacion ---
-    idx_train <- caret::createDataPartition(DatosParaModelado[[VariablePresencia]], p = 0.75, list = FALSE)
-    DatosTrain <- DatosParaModelado[idx_train, ]
-    DatosValid <- DatosParaModelado[-idx_train, ]
+    idx_val <- caret::createDataPartition(DatosParaModelado[[VariablePresencia]], p = 0.1, list = FALSE)
+    DatosVal <- DatosParaModelado[idx_val, ]
+    Resto <- DatosParaModelado[-idx_val, ]
 
-    if(length(unique(DatosValid[[VariablePresencia]])) < 2) {
-      if(verbose) message(sprintf("  ! %s: Conjunto de validacion con una sola clase. Saltando...", m))
+    idx_train <- caret::createDataPartition(Resto[[VariablePresencia]], p = 0.77, list = FALSE)
+    DatosTrain <- Resto[idx_train, ]
+    DatosTest <- Resto[-idx_train, ]
+
+    if(length(unique(DatosTest[[VariablePresencia]])) < 2) {
+      if(verbose) message(sprintf("  ! %s: Conjunto de prueba con una sola clase. Saltando...", m))
       next
     }
 
@@ -140,16 +137,15 @@ RfMdeMultiEspecies <- function(ResultadosList,
     rf_final <- randomForest::randomForest(formula_rf, data = DatosTrain,
                                            importance = TRUE, ntree = NTree, mtry = mtry_opt)
 
-    # --- Evaluacion sobre validacion ---
-    pred_valid <- stats::predict(rf_final, DatosValid)
-    cm_valid <- caret::confusionMatrix(pred_valid, DatosValid[[VariablePresencia]])
+    pred_test <- stats::predict(rf_final, DatosTest)
+    cm_test <- caret::confusionMatrix(pred_test, DatosTest[[VariablePresencia]])
 
-    if(length(unique(DatosValid[[VariablePresencia]])) > 1) {
-      prob_valid <- stats::predict(rf_final, DatosValid, type = "prob")[, "1"]
-      roc_obj <- pROC::roc(DatosValid[[VariablePresencia]], prob_valid, quiet = TRUE)
+    if(length(unique(DatosTest[[VariablePresencia]])) > 1) {
+      prob_test <- stats::predict(rf_final, DatosTest, type = "prob")[, "1"]
+      roc_obj <- pROC::roc(DatosTest[[VariablePresencia]], prob_test, quiet = TRUE)
       auc_val <- as.numeric(pROC::auc(roc_obj))
-      f1_score <- 2 * (cm_valid$byClass["Sensitivity"] * cm_valid$byClass["Pos Pred Value"]) /
-        (cm_valid$byClass["Sensitivity"] + cm_valid$byClass["Pos Pred Value"])
+      f1_score <- 2 * (cm_test$byClass["Sensitivity"] * cm_test$byClass["Pos Pred Value"]) /
+        (cm_test$byClass["Sensitivity"] + cm_test$byClass["Pos Pred Value"])
     } else {
       auc_val <- NA
       f1_score <- NA
@@ -161,19 +157,11 @@ RfMdeMultiEspecies <- function(ResultadosList,
       names(rast_pred) <- paste0("prob_", m)
     }
 
-    # --- Almacenamiento en disco (opcional) ---
     if(!is.null(RutaAlmacenamiento)) {
       dir.create(RutaAlmacenamiento, showWarnings = FALSE, recursive = TRUE)
 
       saveRDS(rf_final, file.path(RutaAlmacenamiento, paste0("RF_Model_", m, ".rds")))
-
-      # Guardar conjuntos de datos segun opcion
-      if(GuardarDatos %in% c("train", "both")) {
-        saveRDS(DatosTrain, file.path(RutaAlmacenamiento, paste0("Train_Data_", m, ".rds")))
-      }
-      if(GuardarDatos %in% c("valid", "both")) {
-        saveRDS(DatosValid, file.path(RutaAlmacenamiento, paste0("Valid_Data_", m, ".rds")))
-      }
+      saveRDS(DatosVal, file.path(RutaAlmacenamiento, paste0("Val_Data_", m, ".rds")))
 
       grDevices::png(file.path(RutaAlmacenamiento, paste0("Imp_Plot_", m, ".png")), width = 800, height = 600)
       randomForest::varImpPlot(rf_final, main = paste("Importancia de Variables -", m))
@@ -184,18 +172,15 @@ RfMdeMultiEspecies <- function(ResultadosList,
       }
     }
 
-    # --- Resultados (incluye datos solo si se guardaron, para no duplicar memoria) ---
     modelos_especies[[m]] <- list(
       modelo = rf_final,
       importance = rf_final$importance,
       cv_summary = cv_resumen,
-      accuracy_valid = cm_valid$overall["Accuracy"],
-      kappa_valid = cm_valid$overall["Kappa"],
+      accuracy_test = cm_test$overall["Accuracy"],
+      kappa = cm_test$overall["Kappa"],
       auc = auc_val,
       f1_score = f1_score,
-      raster_prediction = rast_pred,
-      train_data = if(GuardarDatos %in% c("train", "both")) DatosTrain else NULL,
-      valid_data = if(GuardarDatos %in% c("valid", "both")) DatosValid else NULL
+      raster_prediction = rast_pred
     )
   }
 

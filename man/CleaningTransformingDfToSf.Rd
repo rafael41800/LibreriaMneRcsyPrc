@@ -2,162 +2,117 @@
 % Please edit documentation in R/01_CleaningTransformingDfToSfFunction.R
 \name{CleaningTransformingDfToSf}
 \alias{CleaningTransformingDfToSf}
-\title{Preparación y limpieza de datos para análisis geoespacial}
+\title{Preparacion y limpieza de datos para analisis geoespacial}
 \usage{
 CleaningTransformingDfToSf(
   DataFrame,
   SpatialReference,
   Latitude = 0,
   Variables,
-  EspecieColumna = "especie",
+  EspecieColumna = "especievalida",
+  SCR = 4326,
   verbose = TRUE
 )
 }
 \arguments{
-\item{DataFrame}{\code{data.frame} con los datos a procesar. Debe contener las columnas
-\code{longitud}, \code{latitud} y la columna especificada en \code{EspecieColumna}.
-\code{data.frame} with data to process. Must contain columns \code{longitud}, \code{latitud},
-and the column specified in \code{EspecieColumna}.}
+\item{DataFrame}{Un \code{data.frame} que debe contener obligatoriamente las columnas
+\code{longitud}, \code{latitud} y la columna definida en \code{EspecieColumna}.}
 
-\item{SpatialReference}{Objeto espacial (\code{sf} o \code{sfc}) que define la referencia
-espacial de destino y área de recorte.
-Spatial object (\code{sf} or \code{sfc}) defining the target spatial reference
-and clipping area.}
+\item{SpatialReference}{Objeto espacial (\code{sf} o \code{sfc}) que actua como mascara
+de recorte y define el Sistema de Referencia de Coordenadas (CRS) de destino.}
 
-\item{Latitude}{Valor numérico que define el límite mínimo de latitud para
-filtrar observaciones. Por defecto es \code{0} (ecuador).
-Numeric value defining the minimum latitude threshold for filtering observations.
-Default is \code{0} (equator).}
+\item{Latitude}{Valor numerico. Límite minimo de latitud para conservar registros.
+util para filtrar hemisferios o areas de interes. Por defecto es \code{0}.}
 
-\item{Variables}{Vector de caracteres con los nombres de las columnas a
-conservar en el resultado.
-Character vector with column names to retain in the output.}
+\item{Variables}{Vector de caracteres. Nombres de las columnas adicionales que
+desea conservar en el objeto final (ej. \code{c("altura", "diametro")}).}
 
-\item{EspecieColumna}{Nombre de la columna que contiene la información de especie.
-Por defecto es \code{"especie"}.
-Name of the column containing species information. Default is \code{"especie"}.}
+\item{EspecieColumna}{Caracter. Nombre de la columna que identifica a la especie.
+Por defecto es \code{"especie"}.}
 
-\item{verbose}{Logical. Si \code{TRUE} (por defecto), muestra mensajes de progreso
-en la consola. Si \code{FALSE}, ejecuta silenciosamente.
-Logical. If \code{TRUE} (default), displays progress messages in console.
-If \code{FALSE}, runs silently.}
+\item{SCR}{Numerico o caracter. Sistema de Referencia de Coordenadas original de
+los datos en \code{DataFrame}. Por defecto es \code{4326} (WGS84).}
+
+\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime en consola el progreso
+detallado de cada etapa del procesamiento.}
 }
 \value{
-Un objeto \code{sf} con las siguientes características:
-\itemize{
-\item Geometrías en el sistema de referencia de \code{SpatialReference}
-\item Variables seleccionadas mediante el parámetro \code{Variables}
-\item Columna adicional \code{FrecuenciaEspecieValida} con el conteo de observaciones por especie
-\item Sin duplicados espaciales (mismas coordenadas y misma especie)
-\item Recortado al área definida por \code{SpatialReference}
-\item Observaciones al norte de \code{Latitude}
-}
-
-An \code{sf} object with the following features:
-\itemize{
-\item Geometries in the coordinate reference system of \code{SpatialReference}
-\item Variables selected through the \code{Variables} parameter
-\item Additional column \code{FrecuenciaEspecieValida} with observation count per species
-\item No spatial duplicates (same coordinates and same species)
-\item Clipped to the area defined by \code{SpatialReference}
-\item Observations north of \code{Latitude}
-}
+Un objeto de clase \code{sf} (puntos) con el CRS de \code{SpatialReference}.
+Incluye la columna \code{FrecuenciaEspecieValida} que indica cuantas veces aparece
+cada especie en el set de datos final tras la limpieza.
 }
 \description{
-Transforma un data.frame con coordenadas en un objeto \code{sf} (Simple Features)
-listo para análisis espacial, aplicando filtros, transformaciones de CRS,
-recorte y eliminación de duplicados.
-
-Transforms a data.frame with coordinates into an \code{sf} (Simple Features) object
-ready for spatial analysis, applying filters, CRS transformations,
-clipping, and duplicate removal.
+Transforma un \code{data.frame} con coordenadas geograficas en un objeto espacial \code{sf}.
+La funcion integra un pipeline completo de pre-procesamiento: filtrado por latitud,
+eliminacion de registros sin coordenadas, proyeccion cartografica, recorte
+mediante una capa de referencia, eliminacion de duplicados espaciales y
+calculo de frecuencia por especie.
 }
 \details{
-\strong{Español:} La función ejecuta el siguiente pipeline de procesamiento:
+El flujo de trabajo interno sigue estos pasos:
 \enumerate{
-\item \strong{Filtrado}: Conserva observaciones con \code{latitud >= Latitude}
-\item \strong{Selección}: Mantiene solo las variables especificadas en \code{Variables}
-\item \strong{Conversión a \code{sf}}: Crea geometrías puntuales desde coordenadas
-geográficas (CRS: WGS84, EPSG:4326)
-\item \strong{Transformación CRS}: Proyecta al sistema de coordenadas de \code{SpatialReference}
-\item \strong{Recorte}: Intersecta con el área de \code{SpatialReference}
-\item \strong{Deduplicación}: Elimina puntos con mismas coordenadas y especie
-\item \strong{Conteo}: Agrega columna \code{FrecuenciaEspecieValida} con frecuencia por especie
-}
-
-\strong{English:} The function executes the following processing pipeline:
-\enumerate{
-\item \strong{Filtering}: Keeps observations with \code{latitud >= Latitude}
-\item \strong{Selection}: Retains only variables specified in \code{Variables}
-\item \strong{Conversion to \code{sf}}: Creates point geometries from geographic
-coordinates (CRS: WGS84, EPSG:4326)
-\item \strong{CRS Transformation}: Projects to the coordinate system of \code{SpatialReference}
-\item \strong{Clipping}: Intersects with the area of \code{SpatialReference}
-\item \strong{Deduplication}: Removes points with same coordinates and species
-\item \strong{Counting}: Adds column \code{FrecuenciaEspecieValida} with frequency per species
+\item \strong{Limpieza inicial}: Elimina filas con \code{NA} en coordenadas y filtra por \code{Latitude}.
+\item \strong{Espacializacion}: Convierte el DF a objeto \code{sf} usando el \code{SCR} proporcionado.
+\item \strong{Reproyeccion}: Transforma los datos al CRS del objeto \code{SpatialReference}.
+\item \strong{Recorte Geografico}: Interseccion espacial para mantener solo puntos dentro de la referencia.
+\item \strong{Deduplicacion}: Elimina registros que comparten las mismas coordenadas y especie, evitando redundancia.
+\item \strong{Estadisticas}: Agrega el conteo de frecuencia por grupo biologico.
 }
 }
 \note{
-\strong{Español:}
-\itemize{
-\item La columna especificada en \code{EspecieColumna} debe estar presente aunque no se incluya en \code{Variables}
-\item La deduplicación se basa en coordenadas transformadas (no originales)
-\item Se crea un directorio temporal \verb{~/temp} para manejo de datos raster si es necesario
-\item La función asume que las coordenadas están en grados decimales (WGS84)
-\item Los mensajes de progreso pueden suprimirse estableciendo \code{verbose = FALSE}
+Para obtener una guia detallada en ingles y ejemplos avanzados de flujos de trabajo,
+consulte la viñeta de la libreria: \code{vignette("spatial_cleaning_guide", package = "TuLibreria")}.
 }
-
-\strong{English:}
-\itemize{
-\item The column specified in \code{EspecieColumna} must be present even if not included in \code{Variables}
-\item Deduplication is based on transformed coordinates (not originals)
-\item A temporary directory \verb{~/temp} is created for raster data handling if needed
-\item The function assumes coordinates are in decimal degrees (WGS84)
-\item Progress messages can be suppressed by setting \code{verbose = FALSE}
-}
-}
-\section{Warning/Advertencia}{
+\section{Advertencias}{
 
 \itemize{
-\item \strong{Español}: Si \code{Latitude} es mayor que el límite norte de \code{SpatialReference}, el resultado podría ser vacío
-\item \strong{English}: If \code{Latitude} is greater than the northern limit of \code{SpatialReference}, the result could be empty
-\item \strong{Español}: La proyección podría distorsionar distancias si se usa entre hemisferios
-\item \strong{English}: Projection may distort distances if used across hemispheres
-\item \strong{Español}: El proceso de intersección podría ser lento con muchos polígonos complejos
-\item \strong{English}: Intersection process could be slow with many complex polygons
+\item \strong{Nombres de Columnas}: Si las columnas \code{longitud} o \code{latitud} tienen nombres distintos, debe renombrarlas antes de ingresar el objeto.
+\item \strong{Memoria RAM}: Para datasets de millones de registros, el proceso de interseccion y deduplicacion puede ser intensivo. Se ha optimizado el uso de memoria mediante \code{terraOptions}.
 }
 }
 
 \examples{
 \dontrun{
-# Crear datos de ejemplo
-set.seed(123)
-datos_ejemplo <- data.frame(
-  longitud = runif(100, -100, -80),
-  latitud = runif(100, 15, 30),
-  especie = sample(c("Quercus", "Pinus", "Abies"), 100, replace = TRUE),
-  altura = runif(100, 5, 25),
-  diametro = runif(100, 10, 50)
-)
-
-# Crear polígono de referencia (Zona UTM 14N)
 library(sf)
-bbox <- sf::st_bbox(c(xmin = -95, xmax = -85, ymin = 20, ymax = 25), crs = 4326)
-referencia <- sf::st_as_sfc(bbox) |> sf::st_transform(32614)
+library(dplyr)
 
-# Procesar datos
-datos_espaciales <- CleaningTransformingDfToSf(
-  DataFrame = datos_ejemplo,
-  SpatialReference = referencia,
-  Latitude = 18,
-  Variables = c("especie", "altura", "diametro")
+# 1. Preparar un dataset sintetico
+datos <- data.frame(
+  longitud = runif(200, -102, -98),
+  latitud = runif(200, 19, 21),
+  especie = sample(c("Quercus rugosa", "Pinus ayacahuite"), 200, replace = TRUE),
+  diametro = runif(200, 10, 80),
+  condicion = "vivo"
 )
+
+# 2. Crear una referencia espacial (ej. un cuadrado en el centro de Mexico)
+# Usaremos el EPSG:6372 (Mexico ITRF2008 / LCC) para la proyeccion de destino
+poligono_ref <- st_sfc(st_polygon(list(matrix(
+  c(-101, 19.5, -99, 19.5, -99, 20.5, -101, 20.5, -101, 19.5),
+  ncol = 2, byrow = TRUE))), crs = 4326) \%>\%
+  st_transform(6372)
+
+# 3. Ejecutar la funcion
+resultado <- CleaningTransformingDfToSf(
+  DataFrame = datos,
+  SpatialReference = poligono_ref,
+  Latitude = 18,
+  Variables = c("diametro", "condicion"),
+  EspecieColumna = "especie",
+  SCR = 4326,
+  verbose = TRUE
+)
+
+# 4. Inspeccionar el resultado
+print(resultado)
+plot(st_geometry(resultado), col = "blue", pch = 20)
 }
 
 }
 \seealso{
-\code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_transform}}, \code{\link[sf]{st_intersection}}
+\code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_intersection}}, \code{\link[dplyr]{distinct}}
 }
-\keyword{data_cleaning}
+\keyword{espacial}
 \keyword{gis}
-\keyword{spatial_transformation}
+\keyword{limpieza}
+\keyword{sf}
