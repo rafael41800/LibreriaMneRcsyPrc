@@ -3,82 +3,58 @@
 %   R/02_ProcesamientoDeRasterParaAsignarCrsFunction.R
 \name{ProcessingRasterToAssignCrs}
 \alias{ProcessingRasterToAssignCrs}
-\title{Asignar CRS y procesar raster / Assign CRS and Process Raster}
+\title{Asignar CRS y procesar objetos Raster}
 \usage{
 ProcessingRasterToAssignCrs(RasterObject, SpatialReference, verbose = TRUE)
 }
 \arguments{
-\item{RasterObject}{Objeto SpatRaster a ser transformado.
-/ SpatRaster object to be transformed.}
+\item{RasterObject}{Objeto de clase \code{SpatRaster} que se desea procesar.}
 
-\item{SpatialReference}{Puede ser: un objeto espacial (sf/sfc/SpatVector)
-para extraer el CRS y opcionalmente recortar, o una definición de CRS
-(carácter/WKT/código EPSG).
-/ Either: a spatial object (sf/sfc/SpatVector) to extract CRS and optionally clip,
-or a CRS definition (character/WKT/EPSG code).}
+\item{SpatialReference}{Definicion del destino. Puede ser un objeto espacial
+(\code{sf}, \code{sfc}, \code{SpatVector}) o una definicion directa de CRS (EPSG, WKT).}
 
-\item{verbose}{Lógico. Si \code{TRUE} (por defecto), muestra mensajes de progreso.
-/ Logical. If \code{TRUE} (default), displays progress messages.}
+\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime progreso detallado.}
 }
 \value{
-Un objeto SpatRaster proyectado (y opcionalmente recortado).
-/ A projected (and optionally clipped) SpatRaster object.
+Un objeto \code{SpatRaster} proyectado y, opcionalmente, recortado.
 }
 \description{
-Proyecta un raster a un sistema de referencia de coordenadas (CRS) objetivo
-y opcionalmente lo recorta a un área poligonal.
-/
-Projects a raster to a target Coordinate Reference System (CRS)
-and optionally clips it to a polygon area.
+Proyecta un objeto \code{SpatRaster} a un sistema de referencia de coordenadas (CRS)
+objetivo. La funcion permite estandarizar capas ambientales, asegurando que
+coincidan con el CRS y la extension geografica de un area de estudio definida.
 }
 \details{
-La función realiza las siguientes operaciones:
+El flujo de trabajo interno sigue estos pasos:
 \enumerate{
-\item Configura directorio temporal para manejo de memoria
-\item Valida que el objeto de entrada sea un SpatRaster
-\item Detecta el tipo de referencia espacial
-\item Proyecta el raster al CRS objetivo
-\item Si se proporciona un objeto espacial, recorta el raster al área del polígono
-}
-/
-The function performs the following operations:
-\enumerate{
-\item Sets temporary directory for memory management
-\item Validates that input is a SpatRaster object
-\item Detects the type of spatial reference
-\item Projects the raster to the target CRS
-\item If a spatial object is provided, clips the raster to the polygon area
+\item \strong{Configuracion}: Ajusta opciones de \code{terra} para optimizar el uso de RAM.
+\item \strong{Proyeccion}: Reproyecta el raster al CRS de destino usando interpolacion bilineal.
+\item \strong{Recorte}: Si se provee geometria, realiza el recorte (\code{crop}) y enmascarado (\code{mask}).
 }
 }
 \note{
+Para detalles sobre el manejo de memoria en rasters globales, consulte la viñeta:
+\code{vignette("spatial_cleaning_guide", package = "TuLibreria")}.
+}
+\section{Advertencias}{
+
 \itemize{
-\item El directorio temporal \verb{~/temp} se crea automáticamente si no existe
-\item Para objetos sf/sfc, se convierten automáticamente a SpatVector
-\item El recorte utiliza \code{mask = TRUE} para enmascarar celdas fuera del polígono
-}
-/
-\itemize{
-\item The temporary directory \verb{~/temp} is automatically created if it does not exist
-\item For sf/sfc objects, they are automatically converted to SpatVector
-\item Clipping uses \code{mask = TRUE} to mask cells outside the polygon
+\item \strong{Memoria RAM}: Proyectar rasters de muy alta resolucion puede ser intensivo.
+\item \strong{Geometria}: El recorte solo se activa si \code{SpatialReference} posee una geometria valida.
 }
 }
+
 \examples{
 \dontrun{
 library(terra)
-r <- rast(nrows=10, ncols=10, xmin=-10, xmax=10, ymin=-10, ymax=10)
+r <- rast(nrows=10, ncols=10, crs="EPSG:4326")
 values(r) <- 1:ncell(r)
-
-# Proyectar a un CRS específico / Project to a specific CRS
-r_proj <- ProcessingRasterToAssignCrs(r, "EPSG:32614")
-
-# Proyectar y recortar con un polígono / Project and clip with a polygon
-library(sf)
-poly <- st_as_sfc("POLYGON((-5 -5, 5 -5, 5 5, -5 5, -5 -5))", crs = 4326)
-r_clip <- ProcessingRasterToAssignCrs(r, poly)
+r_final <- ProcessingRasterToAssignCrs(r, "EPSG:32614")
 }
 
 }
 \seealso{
-\code{\link[terra]{project}}, \code{\link[terra]{crop}}, \code{\link[terra]{crs}}
+\code{\link[terra]{project}}, \code{\link[terra]{crop}}, \code{\link[terra]{mask}}
 }
+\keyword{projection}
+\keyword{raster}
+\keyword{spatial}
