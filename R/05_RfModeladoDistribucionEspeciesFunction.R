@@ -60,7 +60,6 @@ RfMdeMultiEspecies <- function(ResultadosList,
                                GuardarDatos = c("none", "train", "valid", "both"),
                                verbose = TRUE) {
 
-  # Validar argumento GuardarDatos
   GuardarDatos <- match.arg(GuardarDatos)
 
   if(!is.null(SetSeed)) set.seed(SetSeed)
@@ -102,7 +101,6 @@ RfMdeMultiEspecies <- function(ResultadosList,
 
     if(verbose) message(sprintf("-> Procesando [%d/%d]: %s", idx, length(NombresEspecies), m))
 
-    # --- Particion 75% entrenamiento, 25% validacion ---
     idx_train <- caret::createDataPartition(DatosParaModelado[[VariablePresencia]], p = 0.75, list = FALSE)
     DatosTrain <- DatosParaModelado[idx_train, ]
     DatosValid <- DatosParaModelado[-idx_train, ]
@@ -140,7 +138,6 @@ RfMdeMultiEspecies <- function(ResultadosList,
     rf_final <- randomForest::randomForest(formula_rf, data = DatosTrain,
                                            importance = TRUE, ntree = NTree, mtry = mtry_opt)
 
-    # --- Evaluacion sobre validacion ---
     pred_valid <- stats::predict(rf_final, DatosValid)
     cm_valid <- caret::confusionMatrix(pred_valid, DatosValid[[VariablePresencia]])
 
@@ -161,13 +158,11 @@ RfMdeMultiEspecies <- function(ResultadosList,
       names(rast_pred) <- paste0("prob_", m)
     }
 
-    # --- Almacenamiento en disco (opcional) ---
     if(!is.null(RutaAlmacenamiento)) {
       dir.create(RutaAlmacenamiento, showWarnings = FALSE, recursive = TRUE)
 
       saveRDS(rf_final, file.path(RutaAlmacenamiento, paste0("RF_Model_", m, ".rds")))
 
-      # Guardar conjuntos de datos segun opcion
       if(GuardarDatos %in% c("train", "both")) {
         saveRDS(DatosTrain, file.path(RutaAlmacenamiento, paste0("Train_Data_", m, ".rds")))
       }
@@ -184,7 +179,6 @@ RfMdeMultiEspecies <- function(ResultadosList,
       }
     }
 
-    # --- Resultados (incluye datos solo si se guardaron, para no duplicar memoria) ---
     modelos_especies[[m]] <- list(
       modelo = rf_final,
       importance = rf_final$importance,

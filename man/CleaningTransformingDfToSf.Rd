@@ -10,13 +10,14 @@ CleaningTransformingDfToSf(
   Latitude = 0,
   Variables,
   EspecieColumna = "especievalida",
+  FechaColumna = "fechacolecta",
   SCR = 4326,
   verbose = TRUE
 )
 }
 \arguments{
 \item{DataFrame}{Un \code{data.frame} que debe contener obligatoriamente las columnas
-\code{longitud}, \code{latitud} y la columna definida en \code{EspecieColumna}.}
+\code{longitud}, \code{latitud}, la definida en \code{EspecieColumna} y la definida en \code{FechaColumna}.}
 
 \item{SpatialReference}{Objeto espacial (\code{sf} o \code{sfc}) que actua como mascara
 de recorte y define el Sistema de Referencia de Coordenadas (CRS) de destino.}
@@ -25,10 +26,13 @@ de recorte y define el Sistema de Referencia de Coordenadas (CRS) de destino.}
 util para filtrar hemisferios o areas de interes. Por defecto es \code{0}.}
 
 \item{Variables}{Vector de caracteres. Nombres de las columnas adicionales que
-desea conservar en el objeto final (ej. \code{c("altura", "diametro")}).}
+desea conservar. Puede ser un subconjunto propio o impropio; se conservarán solo aquellas que existan en el \code{DataFrame}.}
 
 \item{EspecieColumna}{Caracter. Nombre de la columna que identifica a la especie.
-Por defecto es \code{"especie"}.}
+Por defecto es \code{"especievalida"}.}
+
+\item{FechaColumna}{Caracter. Nombre de la columna que identifica la fecha de colecta.
+Por defecto es \code{"fechacolecta"}.}
 
 \item{SCR}{Numerico o caracter. Sistema de Referencia de Coordenadas original de
 los datos en \code{DataFrame}. Por defecto es \code{4326} (WGS84).}
@@ -55,7 +59,7 @@ El flujo de trabajo interno sigue estos pasos:
 \item \strong{Espacializacion}: Convierte el DF a objeto \code{sf} usando el \code{SCR} proporcionado.
 \item \strong{Reproyeccion}: Transforma los datos al CRS del objeto \code{SpatialReference}.
 \item \strong{Recorte Geografico}: Interseccion espacial para mantener solo puntos dentro de la referencia.
-\item \strong{Deduplicacion}: Elimina registros que comparten las mismas coordenadas y especie, evitando redundancia.
+\item \strong{Deduplicacion}: Elimina registros que comparten las mismas coordenadas, especie y fecha, evitando redundancia.
 \item \strong{Estadisticas}: Agrega el conteo de frecuencia por grupo biologico.
 }
 }
@@ -78,34 +82,28 @@ library(dplyr)
 
 # 1. Preparar un dataset sintetico
 datos <- data.frame(
-  longitud = runif(200, -102, -98),
-  latitud = runif(200, 19, 21),
-  especie = sample(c("Quercus rugosa", "Pinus ayacahuite"), 200, replace = TRUE),
-  diametro = runif(200, 10, 80),
-  condicion = "vivo"
+   longitud = runif(200, -102, -98),
+   latitud = runif(200, 19, 21),
+   especievalida = sample(c("Quercus rugosa", "Pinus ayacahuite"), 200, replace = TRUE),
+   fechacolecta = sample(seq(as.Date('2020/01/01'), as.Date('2023/01/01'), by="day"), 200),
+   diametro = runif(200, 10, 80),
+   condicion = "vivo"
 )
 
-# 2. Crear una referencia espacial (ej. un cuadrado en el centro de Mexico)
-# Usaremos el EPSG:6372 (Mexico ITRF2008 / LCC) para la proyeccion de destino
+# 2. Crear una referencia espacial
 poligono_ref <- st_sfc(st_polygon(list(matrix(
-  c(-101, 19.5, -99, 19.5, -99, 20.5, -101, 20.5, -101, 19.5),
-  ncol = 2, byrow = TRUE))), crs = 4326) \%>\%
-  st_transform(6372)
+   c(-101, 19.5, -99, 19.5, -99, 20.5, -101, 20.5, -101, 19.5),
+   ncol = 2, byrow = TRUE))), crs = 4326) \%>\%
+   st_transform(6372)
 
 # 3. Ejecutar la funcion
 resultado <- CleaningTransformingDfToSf(
-  DataFrame = datos,
-  SpatialReference = poligono_ref,
-  Latitude = 18,
-  Variables = c("diametro", "condicion"),
-  EspecieColumna = "especie",
-  SCR = 4326,
-  verbose = TRUE
+   DataFrame = datos,
+   SpatialReference = poligono_ref,
+   Variables = c("diametro", "condicion", "variable_inexistente"), # No arrojara error
+   EspecieColumna = "especievalida",
+   FechaColumna = "fechacolecta"
 )
-
-# 4. Inspeccionar el resultado
-print(resultado)
-plot(st_geometry(resultado), col = "blue", pch = 20)
 }
 
 }
