@@ -178,6 +178,8 @@ RfMdeMultiEspecies <- function(ResultadosList,
         terra::writeRaster(rast_pred, file.path(RutaAlmacenamiento, paste0("Map_", m, ".tif")), overwrite = TRUE)
       }
     }
+    # editar forma de concatenación para el almacenamiento, que empiece por el nombre de la especie
+
 
     modelos_especies[[m]] <- list(
       modelo = rf_final,
