@@ -30,15 +30,9 @@
 #'
 #' @importFrom terra extract
 #' @importFrom sf st_coordinates st_drop_geometry
-#' @importFrom dplyr select mutate where
 #' @export
-PresencesSfNoNaListDf <- function(DataSf,
-                                  RasterReferencia,
-                                  EspecieValida = "especievalida",
-                                  verbose = TRUE) {
-
+PresencesSfNoNaListDf <- function(DataSf, RasterReferencia, EspecieValida = "especievalida", verbose = TRUE) {
   if(verbose) message("\n--- Iniciando extraccion de variables ambientales ---")
-
   if(!inherits(DataSf, "sf")) stop("DataSf debe ser un objeto sf.")
   if(!inherits(RasterReferencia, "SpatRaster")) stop("RasterReferencia debe ser un SpatRaster.")
 
@@ -52,36 +46,86 @@ PresencesSfNoNaListDf <- function(DataSf,
     longitud = Coords[, 1],
     latitud = Coords[, 2],
     Atributos,
-    ValoresRaster[, !names(ValoresRaster) == "ID", drop = FALSE],
+    ValoresRaster[, names(ValoresRaster) != "ID", drop = FALSE],
     Presencia = 1
   )
 
-  ListaEspecies <- unique(as.character(FullDf[[EspecieValida]]))
-  Resultados <- list()
+  if(verbose) message("-> Procesando y limpiando datos por especie...")
+  ListaSplit <- split(FullDf, FullDf[[EspecieValida]])
 
-  for (sp in ListaEspecies) {
-    if(verbose) message("  - Procesando: ", sp)
+  Resultados <- lapply(names(ListaSplit), function(sp) {
+    DfSp <- ListaSplit[[sp]]
 
-    DfSp <- FullDf[FullDf[[EspecieValida]] == sp, ]
-
-    DfCleanCols <- DfSp %>% dplyr::select(where(~ !all(is.na(.))))
-
-    cols_eliminadas <- setdiff(names(DfSp), names(DfCleanCols))
-    if(verbose && length(cols_eliminadas) > 0) {
-      message("    ! Columnas eliminadas por ser todo NA: ", paste(cols_eliminadas, collapse = ", "))
-    }
-
-    DfFinal <- DfCleanCols[stats::complete.cases(DfCleanCols), ]
+    valido <- vapply(DfSp, function(x) !all(is.na(x)), logical(1))
+    DfCleanCols <- DfSp[, valido, drop = FALSE]
 
     if(verbose) {
-      perdidos <- nrow(DfSp) - nrow(DfFinal)
-      message("    > Registros finales: ", nrow(DfFinal), " (", perdidos, " eliminados por NAs)")
+      eliminadas <- names(DfSp)[!valido]
+      if(length(eliminadas) > 0) {
+        message("  ! ", sp, " - Columnas todo NA eliminadas: ", paste(eliminadas, collapse = ", "))
+      }
     }
 
-    Resultados[[sp]] <- DfFinal
-  }
+    DfFinal <- DfCleanCols[stats::complete.cases(DfCleanCols), , drop = FALSE]
+
+    if(verbose) {
+      message("  > ", sp, " - Registros finales: ", nrow(DfFinal), " (", nrow(DfSp) - nrow(DfFinal), " eliminados)")
+    }
+
+    return(DfFinal)
+  })
+
+  names(Resultados) <- names(ListaSplit)
 
   if(verbose) message("--- Extraccion completada exitosamente ---\n")
+  return(invisible(Resultados))
+}
+PresencesSfNoNaListDf <- function(DataSf, RasterReferencia, EspecieValida = "especievalida", verbose = TRUE) {
+  if(verbose) message("\n--- Iniciando extraccion de variables ambientales ---")
+  if(!inherits(DataSf, "sf")) stop("DataSf debe ser un objeto sf.")
+  if(!inherits(RasterReferencia, "SpatRaster")) stop("RasterReferencia debe ser un SpatRaster.")
 
+  if(verbose) message("-> Extrayendo valores del raster para todos los puntos...")
+  ValoresRaster <- terra::extract(RasterReferencia, DataSf)
+
+  Coords <- sf::st_coordinates(DataSf)
+  Atributos <- sf::st_drop_geometry(DataSf)
+
+  FullDf <- data.frame(
+    longitud = Coords[, 1],
+    latitud = Coords[, 2],
+    Atributos,
+    ValoresRaster[, names(ValoresRaster) != "ID", drop = FALSE],
+    Presencia = 1
+  )
+
+  if(verbose) message("-> Procesando y limpiando datos por especie...")
+  ListaSplit <- split(FullDf, FullDf[[EspecieValida]])
+
+  Resultados <- lapply(names(ListaSplit), function(sp) {
+    DfSp <- ListaSplit[[sp]]
+
+    valido <- vapply(DfSp, function(x) !all(is.na(x)), logical(1))
+    DfCleanCols <- DfSp[, valido, drop = FALSE]
+
+    if(verbose) {
+      eliminadas <- names(DfSp)[!valido]
+      if(length(eliminadas) > 0) {
+        message("  ! ", sp, " - Columnas todo NA eliminadas: ", paste(eliminadas, collapse = ", "))
+      }
+    }
+
+    DfFinal <- DfCleanCols[stats::complete.cases(DfCleanCols), , drop = FALSE]
+
+    if(verbose) {
+      message("  > ", sp, " - Registros finales: ", nrow(DfFinal), " (", nrow(DfSp) - nrow(DfFinal), " eliminados)")
+    }
+
+    return(DfFinal)
+  })
+
+  names(Resultados) <- names(ListaSplit)
+
+  if(verbose) message("--- Extraccion completada exitosamente ---\n")
   return(invisible(Resultados))
 }

@@ -24,19 +24,19 @@ El paquete LibreriaMneRcsyPrc proporciona un flujo de trabajo robusto y automati
 ### Step 1: Point Cleaning | Limpieza de Puntos
 Function: CleaningTransformingDfToSf
 
-The first step converts raw tabular data into high-quality spatial objects (sf), ensuring points fall within the study area and eliminating duplicates.
+The first step converts raw tabular data into high-quality spatial objects (sf), ensuring points fall within the study area and eliminating duplicates through optimized vector operations.
 
-Latitude Filtering: Removes records outside the area of interest.
+**Latitude Filtering:** Removes records outside the area of interest.
 
-Coordinate Cleaning: Discards rows with NA values.
+**Coordinate Cleaning:** Discards rows with NA values.
 
-Spatial Conversion: Transforms data.frame to sf.
+**Spatial Conversion:** Transforms data.frame to sf.
 
-Reprojection: Aligns points with the base map CRS.
+**Reprojection:** Aligns points with the base map CRS.
 
-Geographic Clipping: Keeps points within the reference polygon.
+**Topological Filtering:** Uses spatial predicates (`st_filter`) to retain points within the reference polygon efficiently, without computing new geometries.
 
-Deduplication: Removes redundant species/coordinate records.
+**Precision Deduplication:** Rounds coordinates (controlled by `PrecisionDecimales`) to eliminate false uniques caused by floating-point artifacts, then removes spatial, temporal, and taxonomic redundancies.
 
 ```{r, eval = FALSE}
 # library(sf)
@@ -51,7 +51,9 @@ Deduplication: Removes redundant species/coordinate records.
 #   Latitude = 14,
 #   Variables = c("diameter"),
 #   EspecieColumna = "validspecies",
+#   FechaColumna = "collectiondate",
 #   SCR = 4326,
+#   PrecisionDecimales = 4, # Control spatial grouping tolerance (~11m)
 #   verbose = TRUE
 # )
 ```
