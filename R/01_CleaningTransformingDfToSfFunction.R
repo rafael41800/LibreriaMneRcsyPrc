@@ -2,24 +2,32 @@
 #'
 #' @description
 #' Transforma un `data.frame` con coordenadas geograficas en un objeto espacial `sf`.
-#' La funcion integra un pipeline completo de pre-procesamiento: filtrado por latitud,
-#' eliminacion de registros sin coordenadas, proyeccion cartografica, recorte
-#' mediante una capa de referencia, eliminacion de duplicados espaciales y
+#' La funcion integra un pipeline completo de pre-procesamiento vectorizado: filtrado por latitud,
+#' eliminacion de registros sin coordenadas, proyeccion cartografica, filtro topologico
+#' mediante una capa de referencia, eliminacion de duplicados espaciales (con control de precision) y
 #' calculo de frecuencia por especie.
+#'
 #' @param DataFrame Un `data.frame` que debe contener obligatoriamente las columnas
 #'   `longitud`, `latitud`, la definida en `EspecieColumna` y la definida en `FechaColumna`.
 #' @param SpatialReference Objeto espacial (`sf` o `sfc`) que actua como mascara
 #'   de recorte y define el Sistema de Referencia de Coordenadas (CRS) de destino.
-#' @param Latitude Valor numerico. Límite minimo de latitud para conservar registros.
+#' @param Latitude Valor numerico. Limite minimo de latitud para conservar registros.
 #'   util para filtrar hemisferios o areas de interes. Por defecto es `0`.
 #' @param Variables Vector de caracteres. Nombres de las columnas adicionales que
-#'   desea conservar. Puede ser un subconjunto propio o impropio; se conservarán solo aquellas que existan en el `DataFrame`.
+#'   desea conservar. Puede ser un subconjunto propio o impropio; se conservaran solo aquellas que existan en el `DataFrame`.
 #' @param EspecieColumna Caracter. Nombre de la columna que identifica a la especie.
 #'   Por defecto es `"especievalida"`.
 #' @param FechaColumna Caracter. Nombre de la columna que identifica la fecha de colecta.
 #'   Por defecto es `"fechacolecta"`.
 #' @param SCR Numerico o caracter. Sistema de Referencia de Coordenadas original de
 #'   los datos en `DataFrame`. Por defecto es `4326` (WGS84).
+#' @param PrecisionDecimales Numerico. Cantidad de decimales a los que se redondearan
+#'   las coordenadas antes de buscar duplicados. Modificar este valor aumenta o reduce el tamaño
+#'   del area cubierta para la deduplicacion: reducir el numero de decimales (ej. `3`) aumenta
+#'   el area de tolerancia en la que los puntos se consideran identicos (~111 metros), agrupando
+#'   mas registros. Aumentar el numero de decimales (ej. `5`) reduce el area cubierta, exigiendo
+#'   mayor proximidad espacial para considerarlos duplicados (~1.1 metros). Un valor de `4`
+#'   mitiga errores de coma flotante y equivale a una resolucion base de ~11 metros. Por defecto es `4`.
 #' @param verbose Logico. Si es `TRUE` (por defecto), imprime en consola el progreso
 #'   detallado de cada etapa del procesamiento.
 #'
@@ -33,19 +41,19 @@
 #'   \item \strong{Limpieza inicial}: Elimina filas con `NA` en coordenadas y filtra por `Latitude`.
 #'   \item \strong{Espacializacion}: Convierte el DF a objeto `sf` usando el `SCR` proporcionado.
 #'   \item \strong{Reproyeccion}: Transforma los datos al CRS del objeto `SpatialReference`.
-#'   \item \strong{Recorte Geografico}: Interseccion espacial para mantener solo puntos dentro de la referencia.
-#'   \item \strong{Deduplicacion}: Elimina registros que comparten las mismas coordenadas, especie y fecha, evitando redundancia.
+#'   \item \strong{Filtro Topologico}: Utiliza `st_filter` para retener de forma eficiente solo los puntos que intersectan con la referencia espacial.
+#'   \item \strong{Deduplicacion}: Redondea las coordenadas segun `PrecisionDecimales` para evitar falsos unicos por artefactos de coma flotante y elimina registros identicos en espacio, especie y fecha.
 #'   \item \strong{Estadisticas}: Agrega el conteo de frecuencia por grupo biologico.
 #' }
 #'
 #' @note
 #' Para obtener una guia detallada en ingles y ejemplos avanzados de flujos de trabajo,
-#' consulte la viñeta de la libreria: \code{vignette("spatial_cleaning_guide", package = "TuLibreria")}.
+#' consulte la viñeta de la libreria: \code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
 #'
 #' @section Advertencias:
 #' \itemize{
 #'   \item \strong{Nombres de Columnas}: Si las columnas `longitud` o `latitud` tienen nombres distintos, debe renombrarlas antes de ingresar el objeto.
-#'   \item \strong{Memoria RAM}: Para datasets de millones de registros, el proceso de interseccion y deduplicacion puede ser intensivo. Se ha optimizado el uso de memoria mediante \code{terraOptions}.
+#'   \item \strong{Rendimiento Optimo}: Al utilizar `st_filter` en lugar de intersecciones geometricas duras y evaluar duplicados vectorizadamente, esta funcion esta disenada para ser segura en memoria (RAM) incluso con datasets masivos.
 #' }
 #'
 #' @examples
@@ -73,20 +81,20 @@
 #' resultado <- CleaningTransformingDfToSf(
 #'    DataFrame = datos,
 #'    SpatialReference = poligono_ref,
-#'    Variables = c("diametro", "condicion", "variable_inexistente"), # No arrojara error
+#'    Variables = c("diametro", "condicion", "variable_inexistente"),
 #'    EspecieColumna = "especievalida",
-#'    FechaColumna = "fechacolecta"
+#'    FechaColumna = "fechacolecta",
+#'    PrecisionDecimales = 4 # Modificar a 3 para agrupar puntos en un area mayor (~111m)
 #' )
 #' }
 #'
 #' @seealso
-#' \code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_intersection}}, \code{\link[dplyr]{distinct}}
+#' \code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_filter}}, \code{\link[dplyr]{distinct}}
 #'
 #' @keywords limpieza espacial sf gis
 #'
-#' @importFrom sf st_as_sf st_transform st_intersection st_coordinates st_crs st_geometry
+#' @importFrom sf st_as_sf st_transform st_filter st_coordinates st_crs st_intersects
 #' @importFrom dplyr filter select mutate distinct add_count any_of %>%
-#' @importFrom terra terraOptions
 #' @importFrom rlang .data
 #' @export
 CleaningTransformingDfToSf <- function(DataFrame,
@@ -96,55 +104,42 @@ CleaningTransformingDfToSf <- function(DataFrame,
                                        EspecieColumna = "especievalida",
                                        FechaColumna = "fechacolecta",
                                        SCR = 4326,
+                                       PrecisionDecimales = 4,
                                        verbose = TRUE) {
 
   nombres_req <- c("longitud", "latitud", EspecieColumna, FechaColumna)
   faltantes <- setdiff(nombres_req, names(DataFrame))
   if(length(faltantes) > 0) {
-    stop(paste("El DataFrame no contiene las columnas:", paste(faltantes, collapse = ", ")))
+    stop(paste("Error algoritmico: El DataFrame carece de las columnas:", paste(faltantes, collapse = ", ")))
   }
-
-  if(verbose) message("\n--- Inicia procesamiento datos geoespaciales ---")
-
+  if(verbose) message("\n--- Inicia procesamiento de datos geoespaciales ---")
   ColumnasNecesarias <- unique(c(Variables, EspecieColumna, FechaColumna, "longitud", "latitud"))
-
   DFNorth <- DataFrame %>%
     dplyr::filter(!is.na(.data$longitud) & !is.na(.data$latitud)) %>%
     dplyr::filter(.data$latitud >= Latitude) %>%
     dplyr::select(dplyr::any_of(ColumnasNecesarias))
-
-  if(verbose) message("1/7 Filtrado: ", nrow(DFNorth), "/", nrow(DataFrame), " registros")
-
+  if(verbose) message("1/7 Filtrado inicial: ", nrow(DFNorth), " registros retenidos.")
   DFNorth <- sf::st_as_sf(DFNorth, coords = c("longitud", "latitud"), crs = SCR)
-  if(verbose) message("2/7 Conversion a sf (CRS:", SCR, "): OK")
-
   transformation <- sf::st_transform(DFNorth, sf::st_crs(SpatialReference))
-  if(verbose) message("3/7 Transformacion CRS: OK")
-
-  mask <- sf::st_intersection(transformation, sf::st_geometry(SpatialReference))
-  if(verbose) message("4/7 Recorte espacial: ", nrow(mask), " puntos retenidos")
-
+  if(verbose) message("2/7 & 3/7 Transformacion a CRS objetivo: OK")
+  mask <- sf::st_filter(transformation, SpatialReference, .predicate = sf::st_intersects)
+  if(verbose) message("4/7 Filtro topologico espacial: ", nrow(mask), " puntos retenidos.")
   coords <- sf::st_coordinates(mask)
   DFNorthClean <- mask %>%
-    dplyr::mutate(XY = paste(coords[,1],
-                             coords[,2],
-                             .data[[EspecieColumna]],
-                             .data[[FechaColumna]],
-                             sep = "_")) %>%
-    dplyr::distinct(.data$XY, .keep_all = TRUE) %>%
-    dplyr::select(-.data$XY)
-
+    dplyr::mutate(
+      lon_round = round(coords[,1], digits = PrecisionDecimales),
+      lat_round = round(coords[,2], digits = PrecisionDecimales)
+    ) %>%
+    dplyr::distinct(.data$lon_round, .data$lat_round, .data[[EspecieColumna]], .data[[FechaColumna]], .keep_all = TRUE) %>%
+    dplyr::select(-dplyr::any_of(c("lon_round", "lat_round")))
   if(verbose) {
     eliminados <- nrow(mask) - nrow(DFNorthClean)
-    message("5/7 Eliminacion duplicados (por lugar, especie y fecha): ",
-            nrow(DFNorthClean), " unicos (", eliminados, " eliminados)")
+    message("5/7 Eliminacion de duplicados (resolucion ", PrecisionDecimales, " decimales): ",
+            nrow(DFNorthClean), " unicos (", eliminados, " eliminados).")
   }
-
   DFNorthClean <- DFNorthClean %>%
-    dplyr::add_count(.data[[EspecieColumna]], name = "FrecuenciaEspecieValida", .drop = FALSE)
-
-  if(verbose) message("6/7 Frecuencia por especie: OK")
-  if(verbose) message("7/7 Procesamiento completado!")
-
+    dplyr::add_count(.data[[EspecieColumna]], name = "FrecuenciaEspecieValida")
+  if(verbose) message("6/7 Calculo de frecuencias: OK")
+  if(verbose) message("7/7 Procesamiento completado con exito.")
   return(DFNorthClean)
 }

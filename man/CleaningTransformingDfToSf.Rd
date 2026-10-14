@@ -12,6 +12,7 @@ CleaningTransformingDfToSf(
   EspecieColumna = "especievalida",
   FechaColumna = "fechacolecta",
   SCR = 4326,
+  PrecisionDecimales = 4,
   verbose = TRUE
 )
 }
@@ -22,11 +23,11 @@ CleaningTransformingDfToSf(
 \item{SpatialReference}{Objeto espacial (\code{sf} o \code{sfc}) que actua como mascara
 de recorte y define el Sistema de Referencia de Coordenadas (CRS) de destino.}
 
-\item{Latitude}{Valor numerico. Límite minimo de latitud para conservar registros.
+\item{Latitude}{Valor numerico. Limite minimo de latitud para conservar registros.
 util para filtrar hemisferios o areas de interes. Por defecto es \code{0}.}
 
 \item{Variables}{Vector de caracteres. Nombres de las columnas adicionales que
-desea conservar. Puede ser un subconjunto propio o impropio; se conservarán solo aquellas que existan en el \code{DataFrame}.}
+desea conservar. Puede ser un subconjunto propio o impropio; se conservaran solo aquellas que existan en el \code{DataFrame}.}
 
 \item{EspecieColumna}{Caracter. Nombre de la columna que identifica a la especie.
 Por defecto es \code{"especievalida"}.}
@@ -36,6 +37,14 @@ Por defecto es \code{"fechacolecta"}.}
 
 \item{SCR}{Numerico o caracter. Sistema de Referencia de Coordenadas original de
 los datos en \code{DataFrame}. Por defecto es \code{4326} (WGS84).}
+
+\item{PrecisionDecimales}{Numerico. Cantidad de decimales a los que se redondearan
+las coordenadas antes de buscar duplicados. Modificar este valor aumenta o reduce el tamaño
+del area cubierta para la deduplicacion: reducir el numero de decimales (ej. \code{3}) aumenta
+el area de tolerancia en la que los puntos se consideran identicos (~111 metros), agrupando
+mas registros. Aumentar el numero de decimales (ej. \code{5}) reduce el area cubierta, exigiendo
+mayor proximidad espacial para considerarlos duplicados (~1.1 metros). Un valor de \code{4}
+mitiga errores de coma flotante y equivale a una resolucion base de ~11 metros. Por defecto es \code{4}.}
 
 \item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime en consola el progreso
 detallado de cada etapa del procesamiento.}
@@ -47,9 +56,9 @@ cada especie en el set de datos final tras la limpieza.
 }
 \description{
 Transforma un \code{data.frame} con coordenadas geograficas en un objeto espacial \code{sf}.
-La funcion integra un pipeline completo de pre-procesamiento: filtrado por latitud,
-eliminacion de registros sin coordenadas, proyeccion cartografica, recorte
-mediante una capa de referencia, eliminacion de duplicados espaciales y
+La funcion integra un pipeline completo de pre-procesamiento vectorizado: filtrado por latitud,
+eliminacion de registros sin coordenadas, proyeccion cartografica, filtro topologico
+mediante una capa de referencia, eliminacion de duplicados espaciales (con control de precision) y
 calculo de frecuencia por especie.
 }
 \details{
@@ -58,20 +67,20 @@ El flujo de trabajo interno sigue estos pasos:
 \item \strong{Limpieza inicial}: Elimina filas con \code{NA} en coordenadas y filtra por \code{Latitude}.
 \item \strong{Espacializacion}: Convierte el DF a objeto \code{sf} usando el \code{SCR} proporcionado.
 \item \strong{Reproyeccion}: Transforma los datos al CRS del objeto \code{SpatialReference}.
-\item \strong{Recorte Geografico}: Interseccion espacial para mantener solo puntos dentro de la referencia.
-\item \strong{Deduplicacion}: Elimina registros que comparten las mismas coordenadas, especie y fecha, evitando redundancia.
+\item \strong{Filtro Topologico}: Utiliza \code{st_filter} para retener de forma eficiente solo los puntos que intersectan con la referencia espacial.
+\item \strong{Deduplicacion}: Redondea las coordenadas segun \code{PrecisionDecimales} para evitar falsos unicos por artefactos de coma flotante y elimina registros identicos en espacio, especie y fecha.
 \item \strong{Estadisticas}: Agrega el conteo de frecuencia por grupo biologico.
 }
 }
 \note{
 Para obtener una guia detallada en ingles y ejemplos avanzados de flujos de trabajo,
-consulte la viñeta de la libreria: \code{vignette("spatial_cleaning_guide", package = "TuLibreria")}.
+consulte la viñeta de la libreria: \code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
 }
 \section{Advertencias}{
 
 \itemize{
 \item \strong{Nombres de Columnas}: Si las columnas \code{longitud} o \code{latitud} tienen nombres distintos, debe renombrarlas antes de ingresar el objeto.
-\item \strong{Memoria RAM}: Para datasets de millones de registros, el proceso de interseccion y deduplicacion puede ser intensivo. Se ha optimizado el uso de memoria mediante \code{terraOptions}.
+\item \strong{Rendimiento Optimo}: Al utilizar \code{st_filter} en lugar de intersecciones geometricas duras y evaluar duplicados vectorizadamente, esta funcion esta disenada para ser segura en memoria (RAM) incluso con datasets masivos.
 }
 }
 
@@ -100,15 +109,16 @@ poligono_ref <- st_sfc(st_polygon(list(matrix(
 resultado <- CleaningTransformingDfToSf(
    DataFrame = datos,
    SpatialReference = poligono_ref,
-   Variables = c("diametro", "condicion", "variable_inexistente"), # No arrojara error
+   Variables = c("diametro", "condicion", "variable_inexistente"),
    EspecieColumna = "especievalida",
-   FechaColumna = "fechacolecta"
+   FechaColumna = "fechacolecta",
+   PrecisionDecimales = 4 # Modificar a 3 para agrupar puntos en un area mayor (~111m)
 )
 }
 
 }
 \seealso{
-\code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_intersection}}, \code{\link[dplyr]{distinct}}
+\code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_filter}}, \code{\link[dplyr]{distinct}}
 }
 \keyword{espacial}
 \keyword{gis}

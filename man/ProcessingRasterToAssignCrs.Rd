@@ -3,9 +3,14 @@
 %   R/02_ProcesamientoDeRasterParaAsignarCrsFunction.R
 \name{ProcessingRasterToAssignCrs}
 \alias{ProcessingRasterToAssignCrs}
-\title{Asignar CRS y procesar objetos Raster}
+\title{Asignar CRS y procesar objetos Raster de forma optimizada}
 \usage{
-ProcessingRasterToAssignCrs(RasterObject, SpatialReference, verbose = TRUE)
+ProcessingRasterToAssignCrs(
+  RasterObject,
+  SpatialReference,
+  MetodoInterpolacion = "bilinear",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{RasterObject}{Objeto de clase \code{SpatRaster} que se desea procesar.}
@@ -13,42 +18,66 @@ ProcessingRasterToAssignCrs(RasterObject, SpatialReference, verbose = TRUE)
 \item{SpatialReference}{Definicion del destino. Puede ser un objeto espacial
 (\code{sf}, \code{sfc}, \code{SpatVector}) o una definicion directa de CRS (EPSG, WKT).}
 
-\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime progreso detallado.}
+\item{MetodoInterpolacion}{Caracter. Metodo matematico para recalcular los valores de los
+pixeles al proyectar. Use \code{"bilinear"} (por defecto) para variables continuas
+(temperatura, elevacion) y \code{"near"} (vecino mas cercano) para variables categoricas
+(cobertura de suelo, tipos de vegetacion).}
+
+\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime en consola el progreso
+detallado de cada etapa.}
 }
 \value{
-Un objeto \code{SpatRaster} proyectado y, opcionalmente, recortado.
+Un objeto \code{SpatRaster} proyectado y adaptado a la extension exacta de la referencia.
 }
 \description{
 Proyecta un objeto \code{SpatRaster} a un sistema de referencia de coordenadas (CRS)
-objetivo. La funcion permite estandarizar capas ambientales, asegurando que
-coincidan con el CRS y la extension geografica de un area de estudio definida.
+objetivo. La funcion implementa una arquitectura optimizada de "recorte previo"
+(crop-first) que reduce drasticamente el uso de memoria RAM al estandarizar
+capas ambientales globales, asegurando ademas el empalme perfecto de bordes.
 }
 \details{
-El flujo de trabajo interno sigue estos pasos:
+El flujo de trabajo interno resuelve problemas comunes de los SIG mediante estos pasos:
 \enumerate{
-\item \strong{Configuracion}: Ajusta opciones de \code{terra} para optimizar el uso de RAM.
-\item \strong{Proyeccion}: Reproyecta el raster al CRS de destino usando interpolacion bilineal.
-\item \strong{Recorte}: Si se provee geometria, realiza el recorte (\code{crop}) y enmascarado (\code{mask}).
+\item \strong{Traduccion de Geometria}: Extrae el CRS objetivo y transforma temporalmente la referencia al CRS original del raster.
+\item \strong{Recorte Previo (Optimizacion)}: Realiza un recorte burdo (Bounding Box) del raster global usando un margen de seguridad (\code{snap = "out"}). Esto evita procesar millones de pixeles innecesarios en la proyeccion.
+\item \strong{Reproyeccion}: Aplica la transformacion matematica (proyeccion) exclusivamente sobre el area recortada, usando el \code{MetodoInterpolacion} elegido.
+\item \strong{Enmascarado Fino}: Realiza un recorte exacto (\code{mask}) sobre el raster ya proyectado para garantizar que los bordes empaten perfectamente sin generar NAs.
 }
 }
 \note{
-Para detalles sobre el manejo de memoria en rasters globales, consulte la viñeta:
-\code{vignette("spatial_cleaning_guide", package = "TuLibreria")}.
+Para obtener mas detalles sobre la integracion de variables ambientales, consulte la viñeta:
+\code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
 }
 \section{Advertencias}{
 
 \itemize{
-\item \strong{Memoria RAM}: Proyectar rasters de muy alta resolucion puede ser intensivo.
-\item \strong{Geometria}: El recorte solo se activa si \code{SpatialReference} posee una geometria valida.
+\item \strong{Variables Categoricas}: Si intenta usar \code{"bilinear"} en rasters de clases (ej. uso de suelo), los datos se corromperan al inventar clases intermedias. Cambie siempre a \code{"near"}.
+\item \strong{Eficiencia de RAM}: Gracias a la estrategia "Crop-First", el consumo de RAM se minimiza automaticamente sin necesidad de forzar configuraciones complejas en \code{terraOptions}.
 }
 }
 
 \examples{
 \dontrun{
 library(terra)
-r <- rast(nrows=10, ncols=10, crs="EPSG:4326")
-values(r) <- 1:ncell(r)
-r_final <- ProcessingRasterToAssignCrs(r, "EPSG:32614")
+library(sf)
+
+# 1. Crear raster global sintetico (variable continua)
+r_temp <- rast(nrows=180, ncols=360, crs="EPSG:4326")
+values(r_temp) <- runif(ncell(r_temp), 10, 35)
+
+# 2. Definir area de estudio (ej. un estado en coordenadas proyectadas)
+area_estudio <- st_sfc(st_polygon(list(matrix(
+   c(-100, 20, -99, 20, -99, 21, -100, 21, -100, 20),
+   ncol = 2, byrow = TRUE))), crs = 4326) \%>\%
+   st_transform(32614)
+
+# 3. Procesar raster optimizadamente
+r_final <- ProcessingRasterToAssignCrs(
+   RasterObject = r_temp,
+   SpatialReference = area_estudio,
+   MetodoInterpolacion = "bilinear",
+   verbose = TRUE
+)
 }
 
 }

@@ -1,6 +1,6 @@
 Package: LibreriaMneRcsyPrc
 Title: Herramientas para Modelado Estadistico de Datos Espaciotemporales
-Version: 2.2.0
+Version: 3.1.0
 Authors@R: 
     person("Rafael", "Chavez Santiago", , "rafaelchavezsantiago@gmail.com", role = c("aut", "cre"))
 Description: Proporciona herramientas para modelado estadistico de datos
@@ -17,13 +17,19 @@ Depends:
     R (>= 4.0.0)
 Imports:
     caret,
+    dismo,
     dplyr (>= 1.0.0),
+    e1071,
+    gbm,
+    maxnet,
+    mgcv,
+    nnet,
     pROC,
     randomForest,
     rlang,
+    sf (>= 1.0.0),
     stats,
-    terra (>= 1.6.0),
-    sf (>= 1.0.0)
+    terra (>= 1.6.0)
 Suggests:
     knitr,
     rmarkdown,
