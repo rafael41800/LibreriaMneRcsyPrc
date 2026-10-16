@@ -79,6 +79,14 @@ puede sustituir \code{lapply} internamente por \code{future.apply::future_lapply
 }
 }
 
+\section{Visualizacion de Resultados}{
+
+Para revisar los mapas de idoneidad espacial generados (\code{.tif}), los cuales por defecto
+almacenan valores continuos de probabilidad (0 a 1), se recomienda visualizarlos utilizando
+una paleta de colores en formato "semaforo". En esta representacion, el color verde
+indica las areas mas probables (idoneas) y el rojo las menos probables.
+}
+
 \examples{
 \dontrun{
 library(randomForest)
@@ -107,6 +115,12 @@ res <- RfMdeMultiEspecies(
    StackRasterReproyectado = r_env,
    RutaAlmacenamiento = tempdir()
 )
+
+# 4. Revisar metricas y visualizar el mapa con paleta semaforo
+cat("Exactitud:", round(res[["Sp_A"]]$accuracy_valid, 3), "\n")
+terra::plot(res[["Sp_A"]]$raster_prediction,
+            main = "Probabilidad de Distribucion - Sp_A",
+            col = colorRampPalette(c("red", "yellow", "green"))(100))
 }
 
 }
