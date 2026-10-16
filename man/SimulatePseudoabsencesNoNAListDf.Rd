@@ -2,7 +2,7 @@
 % Please edit documentation in R/04_SimulacionPseudoausenciasFunction.R
 \name{SimulatePseudoabsencesNoNAListDf}
 \alias{SimulatePseudoabsencesNoNAListDf}
-\title{Generación de Pseudo-ausencias para Múltiples Especies}
+\title{Generación optimizada de Pseudo-ausencias para Múltiples Especies}
 \usage{
 SimulatePseudoabsencesNoNAListDf(
   Resultados,
@@ -16,26 +16,91 @@ SimulatePseudoabsencesNoNAListDf(
 )
 }
 \arguments{
-\item{Resultados}{Lista de data.frames con los datos de presencia por especie.}
+\item{Resultados}{Lista de \code{data.frame}. Contiene los datos de presencia por especie (típicamente la salida de la extracción de presencias).}
 
-\item{RasterCrsReferencia}{Objeto \code{SpatRaster} que define la extensión y resolución.}
+\item{RasterCrsReferencia}{Objeto \code{SpatRaster}. Define la extensión espacial, la resolución de las celdas y contiene las variables ambientales.}
 
-\item{ObjetoCrsReferencia}{Sistema de referencia de coordenadas (CRS) de destino.}
+\item{ObjetoCrsReferencia}{Sistema de Referencia de Coordenadas (CRS). Destino final para las coordenadas transformadas.}
 
-\item{RadioGradosExclusion}{Radio de exclusión si el CRS es geográfico. Por defecto \code{0.001}.}
+\item{RadioGradosExclusion}{Numerico. Radio de exclusión a aplicar si el CRS de las presencias es geográfico (lat/lon). Por defecto es \code{0.001}.}
 
-\item{RadioMetrosExclusion}{Radio de exclusión si el CRS es proyectado. Por defecto \code{100}.}
+\item{RadioMetrosExclusion}{Numerico. Radio de exclusión a aplicar si el CRS de las presencias es proyectado (ej. UTM). Por defecto es \code{100}.}
 
-\item{NombreVariablesAmbientales}{Vector con los nombres de los predictores.}
+\item{NombreVariablesAmbientales}{Vector de caracteres. Nombres exactos de las capas predictoras en \code{RasterCrsReferencia}.}
 
-\item{verbose}{Logico. Muestra el progreso en consola.}
+\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime el progreso por especie en consola.}
 
-\item{seed}{Semilla para reproducibilidad.}
+\item{seed}{Numerico o \code{NULL}. Semilla aleatoria para garantizar la reproducibilidad en el sorteo de celdas.}
 }
 \value{
-Una lista de objetos \code{sf} con datos de presencia (1) y pseudo-ausencia (0).
+Una lista de objetos \code{data.frame} tabulares. Cada elemento corresponde a una especie
+e incluye los datos de presencia (\code{Presence = 1}), pseudo-ausencia (\code{Presence = 0}),
+los valores ambientales sin NAs, y las coordenadas transformadas (\code{X}, \code{Y}).
 }
 \description{
-Genera puntos de pseudo-ausencia para una lista de especies, evitando áreas
-cercanas a las presencias conocidas mediante un radio de exclusión.
+Genera puntos de pseudo-ausencia (background points) para una lista de especies,
+evitando áreas cercanas a las presencias conocidas mediante un radio de exclusión.
+La función implementa vectorización en R base (\code{lapply}) y filtrado de matrices nativo
+para maximizar la eficiencia computacional sin dependencias de evaluación no estándar (NSE).
 }
+\details{
+El flujo de trabajo interno sigue estos pasos vectorizados:
+\enumerate{
+\item \strong{Espacialización}: Convierte las coordenadas del \code{data.frame} a un objeto \code{sf} y lo proyecta al CRS del raster ambiental.
+\item \strong{Zona de Exclusión}: Construye un buffer topológico (\code{st_buffer} + \code{st_union}) alrededor de las presencias usando el radio estipulado.
+\item \strong{Muestreo Estratificado}: Identifica las celdas del raster que contienen datos válidos (sin NAs) y descarta aquellas donde ya existe una presencia. Sortea aleatoriamente las celdas candidatas.
+\item \strong{Filtro Espacial}: Intersecta los candidatos con el polígono de exclusión para retener solo los puntos verdaderamente alejados (\code{st_intersects}).
+\item \strong{Extracción Ambiental}: Obtiene los valores climáticos o topográficos para los puntos retenidos mediante \code{terra::extract}.
+\item \strong{Ensamble Tabular}: Une presencias y pseudo-ausencias usando indexación matricial rápida (R base), elimina la geometría compleja (\code{st_drop_geometry}) y extrae las coordenadas finales en formato numérico plano para evitar errores en modelos de \emph{Machine Learning}.
+}
+}
+\note{
+Para obtener una guía detallada sobre la calibración del radio de exclusión,
+consulte la viñeta de la librería: \code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
+}
+\section{Advertencias}{
+
+\itemize{
+\item \strong{Extensión del Raster}: Si el área de estudio es muy pequeña o el radio de exclusión es excesivamente grande, la función podría no encontrar celdas disponibles y la especie será omitida con un \code{warning}.
+\item \strong{Compatibilidad con Algoritmos}: La destrucción intencional de la geometría espacial al final del proceso garantiza que paquetes como \code{randomForest} o \code{gbm} no colapsen al ingerir matrices espaciales.
+}
+}
+
+\examples{
+\dontrun{
+library(sf)
+library(terra)
+
+# 1. Crear presencias simuladas
+df_sp <- data.frame(
+   longitud = c(-99.1, -99.2, -99.3),
+   latitud = c(19.4, 19.5, 19.6),
+   especievalida = "Sp_A"
+)
+lista_presencias <- list("Sp_A" = df_sp)
+
+# 2. Crear raster ambiental
+r_env <- rast(nrows=100, ncols=100, ext=ext(-100, -98, 18, 20), crs="EPSG:4326")
+values(r_env) <- runif(ncell(r_env))
+names(r_env) <- "Bio1"
+
+# 3. Ejecutar simulación
+pseudo_abs <- SimulatePseudoabsencesNoNAListDf(
+   Resultados = lista_presencias,
+   RasterCrsReferencia = r_env,
+   ObjetoCrsReferencia = 4326,
+   RadioGradosExclusion = 0.05,
+   NombreVariablesAmbientales = c("Bio1"),
+   verbose = TRUE,
+   seed = 42
+)
+}
+
+}
+\seealso{
+\code{\link[sf]{st_buffer}}, \code{\link[terra]{cellFromXY}}, \code{\link[terra]{extract}}
+}
+\keyword{background-points}
+\keyword{espacial}
+\keyword{pseudo-ausencias}
+\keyword{sdm}

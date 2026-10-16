@@ -2,7 +2,7 @@
 % Please edit documentation in R/03_PresenciasSfSinNaFunction.R
 \name{PresencesSfNoNaListDf}
 \alias{PresencesSfNoNaListDf}
-\title{Extraccion de variables ambientales para puntos de presencia}
+\title{Extraccion vectorizada de variables ambientales para puntos de presencia}
 \usage{
 PresencesSfNoNaListDf(
   DataSf,
@@ -12,38 +12,79 @@ PresencesSfNoNaListDf(
 )
 }
 \arguments{
-\item{DataSf}{Objeto \code{sf} con geometrias de puntos.}
+\item{DataSf}{Objeto \code{sf} con geometrias de puntos (presencias).}
 
-\item{RasterReferencia}{Objeto \code{SpatRaster} con las variables ambientales.}
+\item{RasterReferencia}{Objeto \code{SpatRaster} que contiene las variables ambientales continuas o categoricas.}
 
-\item{EspecieValida}{Nombre de la columna de especie. Por defecto \code{"especievalida"}.}
+\item{EspecieValida}{Caracter. Nombre de la columna en \code{DataSf} que identifica a la especie.
+Por defecto es \code{"especievalida"}.}
 
-\item{verbose}{Logico. Si es \code{TRUE}, muestra mensajes de progreso.}
+\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime en consola el progreso
+detallado del particionamiento espacial y limpieza.}
 }
 \value{
-Una lista invisible de \code{data.frame} segmentados por especie.
+Una lista invisible de objetos \code{data.frame}. Cada elemento de la lista
+corresponde a una especie y contiene solo registros espaciales sin valores \code{NA}.
 }
 \description{
 Extrae valores de variables ambientales desde un objeto \code{SpatRaster} para
-cada punto de presencia en un objeto \code{sf}. Organiza los datos por especie
-y elimina registros incompletos.
+cada punto de presencia en un objeto \code{sf}. Implementa un particionamiento
+vectorizado nativo en C para segmentar la matriz por especie y eliminar registros
+incompletos sin penalizaciones de memoria RAM.
 }
 \details{
-\strong{Limpieza de datos}: La funcion elimina variables (columnas) que son
-totalmente \code{NA} para una especie y luego aplica \code{complete.cases} para
-asegurar que no existan registros vacios antes del modelado.
+El flujo de trabajo interno optimizado sigue estos pasos:
+\enumerate{
+\item \strong{Extraccion Espacial}: Ejecuta \code{terra::extract} de forma global sobre todos los puntos, maximizando el rendimiento.
+\item \strong{Estructuracion tabular}: Ensambla una matriz unica desvinculando la geometria espacial para acelerar el procesamiento logico.
+\item \strong{Particionamiento ($O(N)$)}: Utiliza \code{split} nativo para segmentar el dataset en submatrices independientes por especie en un solo escaneo.
+\item \strong{Filtro Algebraico}: Aplica logica booleana vectorizada (\code{vapply}) para descartar variables (columnas) nulas para especies especificas.
+\item \strong{Limpieza de Tuplas}: Intersecta el espacio de datos con \code{complete.cases} para retener estrictamente registros utiles para el modelado SDM.
+}
+}
+\note{
+Para ejemplos avanzados de ensamble de modelos de distribucion, consulte la viñeta
+de la libreria: \code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
 }
 \section{Advertencias}{
 
 \itemize{
-\item \strong{Alineacion}: Los objetos deben compartir el mismo CRS; de lo contrario, la extraccion fallara o sera erronea.
-\item \strong{NAs Geograficos}: Puntos fuera de la extension del raster seran eliminados.
+\item \strong{Alineacion Topologica}: \code{DataSf} y \code{RasterReferencia} deben compartir el mismo CRS previo a la ejecucion.
+\item \strong{NAs Geograficos}: Puntos que caigan en el oceano o fuera del \emph{Bounding Box} del raster seran eliminados automaticamente.
 }
 }
 
+\examples{
+\dontrun{
+library(sf)
+library(terra)
+
+# 1. Crear datos de presencias simulados
+puntos_sf <- st_as_sf(data.frame(
+  lon = runif(100, -100, -90),
+  lat = runif(100, 15, 25),
+  especievalida = sample(c("SpA", "SpB"), 100, replace = TRUE)
+), coords = c("lon", "lat"), crs = 4326)
+
+# 2. Crear raster ambiental simulado
+r_env <- rast(nrows=50, ncols=50, crs="EPSG:4326", ext=ext(-105, -85, 10, 30))
+values(r_env) <- runif(ncell(r_env))
+names(r_env) <- c("Bio1")
+
+# 3. Ejecutar extraccion optimizada
+lista_presencias <- PresencesSfNoNaListDf(
+  DataSf = puntos_sf,
+  RasterReferencia = r_env,
+  EspecieValida = "especievalida",
+  verbose = TRUE
+)
+}
+
+}
 \seealso{
-\code{\link[terra]{extract}}, \code{\link[stats]{complete.cases}}
+\code{\link[terra]{extract}}, \code{\link[stats]{complete.cases}}, \code{\link[base]{split}}
 }
 \keyword{ambiental}
 \keyword{extraccion}
 \keyword{sdm}
+\keyword{vectorizacion}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/01_CleaningTransformingDfToSfFunction.R
 \name{CleaningTransformingDfToSf}
 \alias{CleaningTransformingDfToSf}
-\title{Preparacion y limpieza de datos para analisis geoespacial}
+\title{Generación optimizada de Pseudo-ausencias para Múltiples Especies}
 \usage{
 CleaningTransformingDfToSf(
   DataFrame,
@@ -17,110 +17,91 @@ CleaningTransformingDfToSf(
 )
 }
 \arguments{
-\item{DataFrame}{Un \code{data.frame} que debe contener obligatoriamente las columnas
-\code{longitud}, \code{latitud}, la definida en \code{EspecieColumna} y la definida en \code{FechaColumna}.}
+\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime el progreso por especie en consola.}
 
-\item{SpatialReference}{Objeto espacial (\code{sf} o \code{sfc}) que actua como mascara
-de recorte y define el Sistema de Referencia de Coordenadas (CRS) de destino.}
+\item{Resultados}{Lista de \code{data.frame}. Contiene los datos de presencia por especie (típicamente la salida de la extracción de presencias).}
 
-\item{Latitude}{Valor numerico. Limite minimo de latitud para conservar registros.
-util para filtrar hemisferios o areas de interes. Por defecto es \code{0}.}
+\item{RasterCrsReferencia}{Objeto \code{SpatRaster}. Define la extensión espacial, la resolución de las celdas y contiene las variables ambientales.}
 
-\item{Variables}{Vector de caracteres. Nombres de las columnas adicionales que
-desea conservar. Puede ser un subconjunto propio o impropio; se conservaran solo aquellas que existan en el \code{DataFrame}.}
+\item{ObjetoCrsReferencia}{Sistema de Referencia de Coordenadas (CRS). Destino final para las coordenadas transformadas.}
 
-\item{EspecieColumna}{Caracter. Nombre de la columna que identifica a la especie.
-Por defecto es \code{"especievalida"}.}
+\item{RadioGradosExclusion}{Numerico. Radio de exclusión a aplicar si el CRS de las presencias es geográfico (lat/lon). Por defecto es \code{0.001}.}
 
-\item{FechaColumna}{Caracter. Nombre de la columna que identifica la fecha de colecta.
-Por defecto es \code{"fechacolecta"}.}
+\item{RadioMetrosExclusion}{Numerico. Radio de exclusión a aplicar si el CRS de las presencias es proyectado (ej. UTM). Por defecto es \code{100}.}
 
-\item{SCR}{Numerico o caracter. Sistema de Referencia de Coordenadas original de
-los datos en \code{DataFrame}. Por defecto es \code{4326} (WGS84).}
+\item{NombreVariablesAmbientales}{Vector de caracteres. Nombres exactos de las capas predictoras en \code{RasterCrsReferencia}.}
 
-\item{PrecisionDecimales}{Numerico. Cantidad de decimales a los que se redondearan
-las coordenadas antes de buscar duplicados. Modificar este valor aumenta o reduce el tamaño
-del area cubierta para la deduplicacion: reducir el numero de decimales (ej. \code{3}) aumenta
-el area de tolerancia en la que los puntos se consideran identicos (~111 metros), agrupando
-mas registros. Aumentar el numero de decimales (ej. \code{5}) reduce el area cubierta, exigiendo
-mayor proximidad espacial para considerarlos duplicados (~1.1 metros). Un valor de \code{4}
-mitiga errores de coma flotante y equivale a una resolucion base de ~11 metros. Por defecto es \code{4}.}
-
-\item{verbose}{Logico. Si es \code{TRUE} (por defecto), imprime en consola el progreso
-detallado de cada etapa del procesamiento.}
+\item{seed}{Numerico o \code{NULL}. Semilla aleatoria para garantizar la reproducibilidad en el sorteo de celdas.}
 }
 \value{
-Un objeto de clase \code{sf} (puntos) con el CRS de \code{SpatialReference}.
-Incluye la columna \code{FrecuenciaEspecieValida} que indica cuantas veces aparece
-cada especie en el set de datos final tras la limpieza.
+Una lista de objetos \code{data.frame} tabulares. Cada elemento corresponde a una especie
+e incluye los datos de presencia (\code{Presence = 1}), pseudo-ausencia (\code{Presence = 0}),
+los valores ambientales sin NAs, y las coordenadas transformadas (\code{X}, \code{Y}).
 }
 \description{
-Transforma un \code{data.frame} con coordenadas geograficas en un objeto espacial \code{sf}.
-La funcion integra un pipeline completo de pre-procesamiento vectorizado: filtrado por latitud,
-eliminacion de registros sin coordenadas, proyeccion cartografica, filtro topologico
-mediante una capa de referencia, eliminacion de duplicados espaciales (con control de precision) y
-calculo de frecuencia por especie.
+Genera puntos de pseudo-ausencia (background points) para una lista de especies,
+evitando áreas cercanas a las presencias conocidas mediante un radio de exclusión.
+La función implementa vectorización en R base (\code{lapply}) y filtrado de matrices nativo
+para maximizar la eficiencia computacional sin dependencias de evaluación no estándar (NSE).
 }
 \details{
-El flujo de trabajo interno sigue estos pasos:
+El flujo de trabajo interno sigue estos pasos vectorizados:
 \enumerate{
-\item \strong{Limpieza inicial}: Elimina filas con \code{NA} en coordenadas y filtra por \code{Latitude}.
-\item \strong{Espacializacion}: Convierte el DF a objeto \code{sf} usando el \code{SCR} proporcionado.
-\item \strong{Reproyeccion}: Transforma los datos al CRS del objeto \code{SpatialReference}.
-\item \strong{Filtro Topologico}: Utiliza \code{st_filter} para retener de forma eficiente solo los puntos que intersectan con la referencia espacial.
-\item \strong{Deduplicacion}: Redondea las coordenadas segun \code{PrecisionDecimales} para evitar falsos unicos por artefactos de coma flotante y elimina registros identicos en espacio, especie y fecha.
-\item \strong{Estadisticas}: Agrega el conteo de frecuencia por grupo biologico.
+\item \strong{Espacialización}: Convierte las coordenadas del \code{data.frame} a un objeto \code{sf} y lo proyecta al CRS del raster ambiental.
+\item \strong{Zona de Exclusión}: Construye un buffer topológico (\code{st_buffer} + \code{st_union}) alrededor de las presencias usando el radio estipulado.
+\item \strong{Muestreo Estratificado}: Identifica las celdas del raster que contienen datos válidos (sin NAs) y descarta aquellas donde ya existe una presencia. Sortea aleatoriamente las celdas candidatas.
+\item \strong{Filtro Espacial}: Intersecta los candidatos con el polígono de exclusión para retener solo los puntos verdaderamente alejados (\code{st_intersects}).
+\item \strong{Extracción Ambiental}: Obtiene los valores climáticos o topográficos para los puntos retenidos mediante \code{terra::extract}.
+\item \strong{Ensamble Tabular}: Une presencias y pseudo-ausencias usando indexación matricial rápida (R base), elimina la geometría compleja (\code{st_drop_geometry}) y extrae las coordenadas finales en formato numérico plano para evitar errores en modelos de \emph{Machine Learning}.
 }
 }
 \note{
-Para obtener una guia detallada en ingles y ejemplos avanzados de flujos de trabajo,
-consulte la viñeta de la libreria: \code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
+Para obtener una guía detallada sobre la calibración del radio de exclusión,
+consulte la viñeta de la librería: \code{vignette("spatial_cleaning_guide", package = "LibreriaMneRcsyPrc")}.
 }
 \section{Advertencias}{
 
 \itemize{
-\item \strong{Nombres de Columnas}: Si las columnas \code{longitud} o \code{latitud} tienen nombres distintos, debe renombrarlas antes de ingresar el objeto.
-\item \strong{Rendimiento Optimo}: Al utilizar \code{st_filter} en lugar de intersecciones geometricas duras y evaluar duplicados vectorizadamente, esta funcion esta disenada para ser segura en memoria (RAM) incluso con datasets masivos.
+\item \strong{Extensión del Raster}: Si el área de estudio es muy pequeña o el radio de exclusión es excesivamente grande, la función podría no encontrar celdas disponibles y la especie será omitida con un \code{warning}.
+\item \strong{Compatibilidad con Algoritmos}: La destrucción intencional de la geometría espacial al final del proceso garantiza que paquetes como \code{randomForest} o \code{gbm} no colapsen al ingerir matrices espaciales.
 }
 }
 
 \examples{
 \dontrun{
 library(sf)
-library(dplyr)
+library(terra)
 
-# 1. Preparar un dataset sintetico
-datos <- data.frame(
-   longitud = runif(200, -102, -98),
-   latitud = runif(200, 19, 21),
-   especievalida = sample(c("Quercus rugosa", "Pinus ayacahuite"), 200, replace = TRUE),
-   fechacolecta = sample(seq(as.Date('2020/01/01'), as.Date('2023/01/01'), by="day"), 200),
-   diametro = runif(200, 10, 80),
-   condicion = "vivo"
+# 1. Crear presencias simuladas
+df_sp <- data.frame(
+   longitud = c(-99.1, -99.2, -99.3),
+   latitud = c(19.4, 19.5, 19.6),
+   especievalida = "Sp_A"
 )
+lista_presencias <- list("Sp_A" = df_sp)
 
-# 2. Crear una referencia espacial
-poligono_ref <- st_sfc(st_polygon(list(matrix(
-   c(-101, 19.5, -99, 19.5, -99, 20.5, -101, 20.5, -101, 19.5),
-   ncol = 2, byrow = TRUE))), crs = 4326) \%>\%
-   st_transform(6372)
+# 2. Crear raster ambiental
+r_env <- rast(nrows=100, ncols=100, ext=ext(-100, -98, 18, 20), crs="EPSG:4326")
+values(r_env) <- runif(ncell(r_env))
+names(r_env) <- "Bio1"
 
-# 3. Ejecutar la funcion
-resultado <- CleaningTransformingDfToSf(
-   DataFrame = datos,
-   SpatialReference = poligono_ref,
-   Variables = c("diametro", "condicion", "variable_inexistente"),
-   EspecieColumna = "especievalida",
-   FechaColumna = "fechacolecta",
-   PrecisionDecimales = 4 # Modificar a 3 para agrupar puntos en un area mayor (~111m)
+# 3. Ejecutar simulación
+pseudo_abs <- SimulatePseudoabsencesNoNAListDf(
+   Resultados = lista_presencias,
+   RasterCrsReferencia = r_env,
+   ObjetoCrsReferencia = 4326,
+   RadioGradosExclusion = 0.05,
+   NombreVariablesAmbientales = c("Bio1"),
+   verbose = TRUE,
+   seed = 42
 )
 }
 
 }
 \seealso{
-\code{\link[sf]{st_as_sf}}, \code{\link[sf]{st_filter}}, \code{\link[dplyr]{distinct}}
+\code{\link[sf]{st_buffer}}, \code{\link[terra]{cellFromXY}}, \code{\link[terra]{extract}}
 }
+\keyword{background-points}
 \keyword{espacial}
-\keyword{gis}
-\keyword{limpieza}
-\keyword{sf}
+\keyword{pseudo-ausencias}
+\keyword{sdm}

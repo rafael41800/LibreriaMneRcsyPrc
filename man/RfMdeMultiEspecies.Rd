@@ -2,7 +2,7 @@
 % Please edit documentation in R/05_RfModeladoDistribucionEspeciesFunction.R
 \name{RfMdeMultiEspecies}
 \alias{RfMdeMultiEspecies}
-\title{Modelado de Distribucion de Especies Multiples con Random Forest}
+\title{Modelado optimizado de Distribucion de Especies Multiples con Random Forest}
 \usage{
 RfMdeMultiEspecies(
   ResultadosList,
@@ -20,57 +20,101 @@ RfMdeMultiEspecies(
 )
 }
 \arguments{
-\item{ResultadosList}{Lista de objetos \code{sf} o \code{data.frame} (salida de la Funcion 4).}
+\item{ResultadosList}{Lista de objetos \code{data.frame} (salida tabular de la Funcion 4).}
 
-\item{Variables}{Vector de caracteres con los nombres de las variables predictoras.}
+\item{Variables}{Vector de caracteres con los nombres de las variables predictoras ambientales.}
 
-\item{VariablePresencia}{Nombre de la columna de respuesta. Por defecto \code{"Presence"}.}
+\item{VariablePresencia}{Caracter. Nombre de la columna de respuesta. Por defecto \code{"Presence"}.}
 
-\item{RegistrosMinimos}{Minimo de datos necesarios para intentar el modelo. Por defecto \code{10}.}
+\item{RegistrosMinimos}{Numerico. Minimo de datos validos necesarios para intentar ajustar el modelo. Por defecto \code{10}.}
 
-\item{StackRasterReproyectado}{Objeto \code{SpatRaster} para la prediccion espacial.}
+\item{StackRasterReproyectado}{Objeto \code{SpatRaster} opcional utilizado para la proyeccion espacial continua del modelo.}
 
-\item{RutaAlmacenamiento}{Carpeta para guardar \code{.rds}, \code{.tif} y graficos. Si es \code{NULL}, no guarda.}
+\item{RutaAlmacenamiento}{Caracter. Directorio para guardar \code{.rds}, \code{.tif} y graficos de importancia. Si es \code{NULL}, la funcion opera solo en memoria.}
 
-\item{NTree}{Numero de arboles. Por defecto \code{100}.}
+\item{NTree}{Numerico. Numero de arboles a construir en el bosque. Por defecto \code{100}.}
 
-\item{SetSeed}{Semilla para reproducibilidad.}
+\item{SetSeed}{Numerico. Semilla para garantizar la reproducibilidad de las particiones y el remuestreo.}
 
-\item{CrossValidationParticiones}{Numero de folds para k-fold CV. Por defecto \code{5}.}
+\item{CrossValidationParticiones}{Numerico. Numero de particiones (folds) para k-fold CV sobre el set de entrenamiento. Por defecto \code{5}.}
 
-\item{TuneMTry}{Logico. ¿Optimizar \code{mtry} automaticamente? Por defecto \code{TRUE}.}
+\item{TuneMTry}{Logico. Si es \code{TRUE}, utiliza \code{tuneRF} para encontrar el hiperparametro espacial optimo automaticamente.}
 
-\item{GuardarDatos}{Opcion para guardar los datos usados en el modelo:
-\code{"none"} (default), \code{"train"}, \code{"valid"} o \code{"both"}.}
+\item{GuardarDatos}{Caracter. Define que subconjuntos de datos exportar: \code{"none"} (default), \code{"train"}, \code{"valid"} o \code{"both"}.}
 
-\item{verbose}{Logico. Muestra el progreso del modelado.}
+\item{verbose}{Logico. Si es \code{TRUE}, imprime el progreso en consola.}
 }
 \value{
-Una lista nombrada por especie que contiene: modelo, importancia, metricas
-(AUC, Kappa, F1), raster de prediccion (si se proporciono el stack) y,
-opcionalmente, los conjuntos de entrenamiento y validacion.
+Una lista estructurada y nombrada por especie. Cada elemento contiene el modelo ajustado,
+la importancia de variables, las metricas de validacion interna (CV) y externa (AUC, Kappa, F1),
+el mapa de idoneidad (si se configuro) y los datos particionados.
 }
 \description{
-Ejecuta modelos Random Forest para multiples especies a partir de datos de
-presencia/ausencia. Incluye validacion cruzada, optimizacion de hiperparametros
-(mtry), evaluacion de metricas y prediccion espacial.
+Ejecuta modelos Random Forest para multiples especies a partir de datos tabulares de
+presencia/ausencia. La funcion esta optimizada mediante iteracion funcional (\code{lapply})
+e indexacion matricial en R base, eliminando dependencias de Tidyverse para acelerar
+la validacion cruzada, la optimizacion de hiperparametros y la prediccion espacial.
 }
 \details{
-La funcion realiza una particion de datos: 75\% para entrenamiento y 25\% para validacion.
-Si \code{TuneMTry} es \code{TRUE}, utiliza \code{tuneRF} para optimizar el parametro \code{mtry}.
+El flujo de trabajo interno sigue estos pasos independientes por especie:
+\enumerate{
+\item \strong{Limpieza Matricial}: Extrae las columnas estrictamente necesarias usando R base y elimina los registros con \code{NA}.
+\item \strong{Particion de Datos}: Divide el set aleatoriamente en 75\\% para entrenamiento y 25\\% para validacion externa.
+\item \strong{Optimizacion}: Si se solicita, busca el valor optimo de variables candidatas por division (\code{mtry}).
+\item \strong{Validacion Interna (K-Fold CV)}: Estima la precision y el estadistico Kappa en datos no vistos del set de entrenamiento.
+\item \strong{Ajuste y Metricas}: Entrena el modelo Random Forest final y calcula el Area Bajo la Curva (AUC) y F1-Score con el set del 25\\%.
+\item \strong{Espacializacion}: Proyecta la probabilidad de presencia sobre el raster de referencia.
+\item \strong{Exportacion Organizada}: Guarda los resultados en disco estructurando los nombres de archivo con la especie como prefijo (ej. \code{Especie_RF_Model.rds}).
+}
+}
+\note{
+Esta funcion esta diseñada para integrarse en un flujo asincrono. Si cuenta con multiples nucleos,
+puede sustituir \code{lapply} internamente por \code{future.apply::future_lapply} para modelar especies en paralelo.
 }
 \section{Advertencias}{
 
 \itemize{
-\item Requiere ambas clases (0 y 1) para funcionar.
-\item La calidad del mapa depende de la resolucion del raster.
+\item \strong{Balance de Clases}: El modelo omitira la especie si los conjuntos particionados terminan con solo presencias o solo ausencias.
+\item \strong{Rendimiento}: La prediccion espacial sobre rasters de alta resolucion es el paso mas costoso en RAM; ajuste sus recursos en consecuencia.
 }
 }
 
+\examples{
+\dontrun{
+library(randomForest)
+library(terra)
+
+# 1. Crear datos simulados
+df_sp <- data.frame(
+   Presence = sample(c(0, 1), 50, replace = TRUE),
+   Bio1 = runif(50, 10, 30),
+   Bio2 = runif(50, 50, 100)
+)
+lista_datos <- list("Sp_A" = df_sp)
+
+# 2. Raster sintetico
+r_env <- rast(nrows=10, ncols=10, ext=ext(0, 10, 0, 10))
+values(r_env) <- runif(100)
+names(r_env) <- c("Bio1")
+add(r_env) <- r_env * 2
+names(r_env)[2] <- "Bio2"
+
+# 3. Correr modelo
+res <- RfMdeMultiEspecies(
+   ResultadosList = lista_datos,
+   Variables = c("Bio1", "Bio2"),
+   VariablePresencia = "Presence",
+   StackRasterReproyectado = r_env,
+   RutaAlmacenamiento = tempdir()
+)
+}
+
+}
 \seealso{
-\code{\link[randomForest]{randomForest}}, \code{\link[caret]{confusionMatrix}}
+\code{\link[randomForest]{randomForest}}, \code{\link[caret]{createDataPartition}}, \code{\link[pROC]{roc}}
 }
 \keyword{forest}
-\keyword{modelado}
+\keyword{prediccion}
 \keyword{random}
 \keyword{sdm}
+\keyword{validacion}
